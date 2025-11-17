@@ -74,6 +74,7 @@ export default function OverviewTab() {
           onChange={(e) => setDays(Number(e.target.value))}
           className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
         >
+          <option value={1}>Yesterday / Past 24hrs</option>
           <option value={7}>Last 7 days</option>
           <option value={30}>Last 30 days</option>
           <option value={90}>Last 90 days</option>
