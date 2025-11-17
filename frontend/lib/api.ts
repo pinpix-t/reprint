@@ -1,0 +1,133 @@
+import axios from 'axios';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+export interface OverviewData {
+  total_reprints: number;
+  previous_period_total: number;
+  change_percentage: number;
+  top_products: Array<{ product_type: string; count: number; percentage: number }>;
+  top_facilities: Array<{ facility: string; count: number; percentage: number }>;
+  top_reasons: Array<{ reason: string; count: number; percentage: number }>;
+  trend: Array<{ date: string; count: number }>;
+}
+
+export interface ReviewAnalysis {
+  products: Record<string, number>;
+  issues: Record<string, number>;
+  facilities: Record<string, number>;
+  sentiments: Record<string, number>;
+  total_reviews: number;
+  reviews_with_issues: number;
+  top_products_with_issues: Array<{ product: string; count: number; percentage: number }>;
+  trending_concerns: Array<{ issue: string; count: number; percentage: number }>;
+}
+
+export interface TrendDataPoint {
+  date: string;
+  count: number;
+  by_product?: Record<string, number>;
+  by_facility?: Record<string, number>;
+  by_reason?: Record<string, number>;
+}
+
+export const apiClient = {
+  // Overview
+  getOverview: async (days: number = 7): Promise<OverviewData> => {
+    const response = await api.get(`/api/reprints/overview?days=${days}`);
+    return response.data;
+  },
+
+  // Reprints
+  getReprintMetrics: async (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const response = await api.get(`/api/reprints/metrics?${params.toString()}`);
+    return response.data;
+  },
+
+  getProductMetrics: async (startDate?: string, endDate?: string, topN: number = 10) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    params.append('top_n', topN.toString());
+    const response = await api.get(`/api/reprints/products?${params.toString()}`);
+    return response.data;
+  },
+
+  getFacilityMetrics: async (startDate?: string, endDate?: string, topN: number = 10) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    params.append('top_n', topN.toString());
+    const response = await api.get(`/api/reprints/facilities?${params.toString()}`);
+    return response.data;
+  },
+
+  getReasonMetrics: async (startDate?: string, endDate?: string, topN: number = 10) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    params.append('top_n', topN.toString());
+    const response = await api.get(`/api/reprints/reasons?${params.toString()}`);
+    return response.data;
+  },
+
+  getTrend: async (startDate: string, endDate: string, groupBy: string = 'day'): Promise<TrendDataPoint[]> => {
+    const response = await api.get(
+      `/api/reprints/trend?start_date=${startDate}&end_date=${endDate}&group_by=${groupBy}`
+    );
+    return response.data;
+  },
+
+  getComparison: async (startDate: string, endDate: string, comparisonType: string = 'week') => {
+    const response = await api.get(
+      `/api/reprints/compare?start_date=${startDate}&end_date=${endDate}&comparison_type=${comparisonType}`
+    );
+    return response.data;
+  },
+
+  getFacilityDetails: async (facility: string, days: number = 30) => {
+    const response = await api.get(`/api/reprints/facility/${facility}?days=${days}`);
+    return response.data;
+  },
+
+  getProductDetails: async (product: string, days: number = 30) => {
+    const response = await api.get(`/api/reprints/product/${product}?days=${days}`);
+    return response.data;
+  },
+
+  // Reviews
+  getReviewAnalysis: async (startDate?: string, endDate?: string): Promise<ReviewAnalysis> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const response = await api.get(`/api/reviews/analyze?${params.toString()}`);
+    return response.data;
+  },
+
+  getReviewSummary: async (days: number = 7): Promise<ReviewAnalysis> => {
+    const response = await api.get(`/api/reviews/summary?days=${days}`);
+    return response.data;
+  },
+
+  getProductQuality: async (product: string, days: number = 30) => {
+    const response = await api.get(`/api/reviews/product/${product}?days=${days}`);
+    return response.data;
+  },
+
+  // Freshdesk
+  getFreshdeskStats: async (days: number = 30) => {
+    const response = await api.get(`/api/freshdesk/stats?days=${days}`);
+    return response.data;
+  },
+};
+
