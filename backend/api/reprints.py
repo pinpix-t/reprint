@@ -206,8 +206,13 @@ async def get_overview(
     
     if not all_data.empty and 'requested_date' in all_data.columns:
         # Get the most recent date in the data
-        max_date = all_data['requested_date'].max()
-        if pd.isna(max_date):
+        # Filter out NaN dates first to ensure we get a valid max
+        valid_dates = all_data['requested_date'].dropna()
+        if len(valid_dates) > 0:
+            max_date = valid_dates.max()
+        else:
+            max_date = None
+        if max_date is None or pd.isna(max_date):
             # If no valid dates, fall back to today
             end_date = datetime.now(timezone.utc)
         else:
