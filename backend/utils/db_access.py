@@ -66,37 +66,50 @@ def get_reprints(
         query = supabase.table(REPRINT_TABLE).select("*")
         
         # SECURITY: Supabase client uses parameterized queries
-        # Note: Column "Requested date" has a space - Supabase handles this automatically
-        # Dates in Supabase are stored as text (DD/MM/YYYY format from CSV)
-        # We need to compare as strings, but Supabase may have converted them to dates
-        # Try both date and string comparison approaches
-        if start_date:
-            # Format as YYYY-MM-DD for date comparison (if Supabase converted to date type)
-            start_date_str = start_date.strftime("%Y-%m-%d")
-            logger.debug(f"Filtering by start_date: {start_date_str}")
-            query = query.gte(COLUMN_REQUESTED_DATE, start_date_str)
-        if end_date:
-            # Format as YYYY-MM-DD for date comparison
-            # Add one day to include the full end date
-            from datetime import timedelta
-            end_date_inclusive = end_date + timedelta(days=1)
-            end_date_str = end_date_inclusive.strftime("%Y-%m-%d")
-            logger.debug(f"Filtering by end_date: {end_date_str}")
-            query = query.lt(COLUMN_REQUESTED_DATE, end_date_str)  # Use lt (less than) to exclude the next day
+        # Note: Dates in Supabase may be stored as text in DD/MM/YYYY format
+        # We'll fetch data and filter in Python to handle any date format
+        # This ensures compatibility regardless of how Supabase stores the dates
+        
+        # Apply non-date filters directly in query (more efficient)
         if facility:
             query = query.eq(COLUMN_FACILITY_NAME, facility)
         if product_type:
             query = query.eq(COLUMN_PRODUCT_TYPE, product_type)
         
-        query = query.range(offset, offset + limit - 1)
+        # Fetch data (we'll filter by date in Python if needed)
+        # Increase limit if date filtering is needed (we'll filter after)
+        fetch_limit = limit * 10 if (start_date or end_date) else limit
+        query = query.range(offset, offset + fetch_limit - 1)
         
         response = query.execute()
         data = response.data if hasattr(response, 'data') else []
         
         if not data:
+            logger.warning(f"No data returned from Supabase table {REPRINT_TABLE}")
             return pd.DataFrame()
         
-        return process_reprint_data(data)
+        # Process data to DataFrame
+        df = process_reprint_data(data)
+        
+        # Apply date filters in Python (handles any date format)
+        if start_date or end_date:
+            if 'requested_date' in df.columns:
+                if start_date:
+                    df = df[df['requested_date'] >= start_date]
+                if end_date:
+                    # Include full end date
+                    from datetime import timedelta
+                    end_date_inclusive = end_date + timedelta(days=1)
+                    df = df[df['requested_date'] < end_date_inclusive]
+            else:
+                logger.warning(f"Column 'requested_date' not found in processed data. Available columns: {df.columns.tolist()}")
+        
+        # Apply limit after filtering
+        if len(df) > limit:
+            df = df.head(limit)
+        
+        logger.info(f"Returning {len(df)} records after filtering")
+        return df
     except Exception as e:
         logger.error(f"Error fetching reprints from Supabase: {e}", exc_info=True)
         raise
