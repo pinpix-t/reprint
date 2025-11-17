@@ -20,7 +20,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 # Constants for table and column names
-REPRINT_TABLE = "reprints"
+REPRINT_TABLE = "BO_reprints"
 REVIEW_TABLE = "reviews"
 COLUMN_REQUESTED_DATE = "Requested date"
 COLUMN_FACILITY_NAME = "ActualFacilityName"
