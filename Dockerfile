@@ -12,12 +12,12 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements.txt /app/backend/requirements.txt
 
 # Create virtual environment and install dependencies
+# Use absolute paths to avoid activation issues
 RUN cd /app/backend && \
     python3 -m venv venv && \
-    . venv/bin/activate && \
-    pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    python -m spacy download en_core_web_sm
+    /app/backend/venv/bin/pip install --upgrade pip && \
+    /app/backend/venv/bin/pip install -r /app/backend/requirements.txt && \
+    /app/backend/venv/bin/python -m spacy download en_core_web_sm
 
 # Copy application code
 COPY backend/ /app/backend/
