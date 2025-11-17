@@ -90,18 +90,18 @@ export default function OverviewTab() {
           change={data.change_percentage}
         />
         <MetricCard
-          title="Top Products"
-          value={data.top_products.length}
+          title="Top Product"
+          value={data.top_products[0]?.count || 0}
           subtitle={data.top_products[0]?.product_type || 'N/A'}
         />
         <MetricCard
-          title="Top Facilities"
-          value={data.top_facilities.length}
+          title="Top Facility"
+          value={data.top_facilities[0]?.count || 0}
           subtitle={data.top_facilities[0]?.facility || 'N/A'}
         />
         <MetricCard
-          title="Top Reasons"
-          value={data.top_reasons.length}
+          title="Top Reason"
+          value={data.top_reasons[0]?.count || 0}
           subtitle={data.top_reasons[0]?.reason || 'N/A'}
         />
       </div>
