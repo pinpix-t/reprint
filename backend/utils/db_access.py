@@ -66,10 +66,23 @@ def get_reprints(
         query = supabase.table(REPRINT_TABLE).select("*")
         
         # SECURITY: Supabase client uses parameterized queries
+        # Note: Column "Requested date" has a space - Supabase handles this automatically
+        # Dates in Supabase are stored as text (DD/MM/YYYY format from CSV)
+        # We need to compare as strings, but Supabase may have converted them to dates
+        # Try both date and string comparison approaches
         if start_date:
-            query = query.gte(COLUMN_REQUESTED_DATE, start_date.isoformat())
+            # Format as YYYY-MM-DD for date comparison (if Supabase converted to date type)
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            logger.debug(f"Filtering by start_date: {start_date_str}")
+            query = query.gte(COLUMN_REQUESTED_DATE, start_date_str)
         if end_date:
-            query = query.lte(COLUMN_REQUESTED_DATE, end_date.isoformat())
+            # Format as YYYY-MM-DD for date comparison
+            # Add one day to include the full end date
+            from datetime import timedelta
+            end_date_inclusive = end_date + timedelta(days=1)
+            end_date_str = end_date_inclusive.strftime("%Y-%m-%d")
+            logger.debug(f"Filtering by end_date: {end_date_str}")
+            query = query.lt(COLUMN_REQUESTED_DATE, end_date_str)  # Use lt (less than) to exclude the next day
         if facility:
             query = query.eq(COLUMN_FACILITY_NAME, facility)
         if product_type:
