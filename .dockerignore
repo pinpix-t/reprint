@@ -10,7 +10,6 @@ __pycache__
 *.so
 .Python
 env/
-venv/
 ENV/
 .venv
 *.egg-info/
@@ -19,6 +18,7 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+# Note: venv/ is NOT ignored - needed for Railway deployment
 
 # Environment files
 .env
