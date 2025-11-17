@@ -8,18 +8,22 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create backend directory
+RUN mkdir -p /app/backend
+
 # Copy requirements first for better caching (requirements.txt is in root)
 COPY requirements.txt /app/backend/requirements.txt
 
 # Create virtual environment and install dependencies
 # Use absolute paths to avoid activation issues
-RUN cd /app/backend && \
-    python3 -m venv venv && \
+WORKDIR /app/backend
+RUN python3 -m venv venv && \
     /app/backend/venv/bin/pip install --upgrade pip && \
     /app/backend/venv/bin/pip install -r /app/backend/requirements.txt && \
     /app/backend/venv/bin/python -m spacy download en_core_web_sm
 
 # Copy application code
+WORKDIR /app
 COPY backend/ /app/backend/
 
 # Create non-root user
