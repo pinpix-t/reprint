@@ -25,6 +25,9 @@ RUN python3 -m venv venv && \
 WORKDIR /app
 COPY backend/ /app/backend/
 
+# Copy CSV data file
+COPY BO_reprints_rows.csv /app/BO_reprints_rows.csv
+
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
     chown -R appuser:appuser /app && \

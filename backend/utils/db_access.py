@@ -12,7 +12,14 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from utils.supabase_client import supabase
+# Supabase is optional - CSV is primary data source
+try:
+    from utils.supabase_client import supabase
+    SUPABASE_AVAILABLE = True
+except Exception:
+    SUPABASE_AVAILABLE = False
+    supabase = None
+
 from utils.data_processor import process_reprint_data
 from config import MAX_PAGE_SIZE
 import pandas as pd
