@@ -82,7 +82,8 @@ def get_product_metrics(
         product_df = df[df['product_type'] == product]
         if 'reprint_reason' in product_df.columns:
             reasons = product_df['reprint_reason'].value_counts().head(5)
-            top_reasons = [{"reason": r, "count": int(c)} for r, c in reasons.items()]
+            # Format as Dict[str, int] where key is reason name, value is count
+            top_reasons = [{str(r): int(c)} for r, c in reasons.items()]
         else:
             top_reasons = []
         
@@ -116,14 +117,16 @@ def get_facility_metrics(
         # Top products for this facility
         if 'product_type' in facility_df.columns:
             products = facility_df['product_type'].value_counts().head(5)
-            top_products = [{"product": p, "count": int(c)} for p, c in products.items()]
+            # Format as Dict[str, int] where key is product name, value is count
+            top_products = [{str(p): int(c)} for p, c in products.items()]
         else:
             top_products = []
         
         # Top reasons for this facility
         if 'reprint_reason' in facility_df.columns:
             reasons = facility_df['reprint_reason'].value_counts().head(5)
-            top_reasons = [{"reason": r, "count": int(c)} for r, c in reasons.items()]
+            # Format as Dict[str, int] where key is reason name, value is count
+            top_reasons = [{str(r): int(c)} for r, c in reasons.items()]
         else:
             top_reasons = []
         
