@@ -84,29 +84,38 @@ def get_reprints(
         response = query.execute()
         data = response.data if hasattr(response, 'data') else []
         
+        logger.info(f"Fetched {len(data)} raw records from Supabase table {REPRINT_TABLE}")
+        
         if not data:
             logger.warning(f"No data returned from Supabase table {REPRINT_TABLE}")
             return pd.DataFrame()
         
         # Process data to DataFrame
         df = process_reprint_data(data)
+        logger.info(f"Processed {len(df)} records into DataFrame. Columns: {df.columns.tolist()}")
         
         # Apply date filters in Python (handles any date format)
         if start_date or end_date:
             if 'requested_date' in df.columns:
+                initial_count = len(df)
                 if start_date:
                     df = df[df['requested_date'] >= start_date]
+                    logger.info(f"After start_date filter ({start_date}): {len(df)} records (from {initial_count})")
                 if end_date:
                     # Include full end date
                     from datetime import timedelta
                     end_date_inclusive = end_date + timedelta(days=1)
+                    before_end_filter = len(df)
                     df = df[df['requested_date'] < end_date_inclusive]
+                    logger.info(f"After end_date filter (<{end_date_inclusive}): {len(df)} records (from {before_end_filter})")
             else:
                 logger.warning(f"Column 'requested_date' not found in processed data. Available columns: {df.columns.tolist()}")
+                logger.warning("Date filtering skipped - will return all data")
         
         # Apply limit after filtering
         if len(df) > limit:
             df = df.head(limit)
+            logger.info(f"Limited results to {limit} records")
         
         logger.info(f"Returning {len(df)} records after filtering")
         return df
