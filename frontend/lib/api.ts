@@ -14,6 +14,10 @@ const api = axios.create({
 // Request interceptor for logging
 api.interceptors.request.use(
   (config) => {
+    // Log API URL in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`API Request: ${config.baseURL}${config.url}`);
+    }
     return config;
   },
   (error) => {
@@ -27,6 +31,18 @@ api.interceptors.response.use(
   (error) => {
     if (error.code === 'ECONNABORTED') {
       console.error('Request timeout');
+    } else if (error.response) {
+      // Server responded with error status
+      console.error(`API Error ${error.response.status}:`, error.response.data);
+      console.error(`Request URL: ${error.config?.baseURL}${error.config?.url}`);
+    } else if (error.request) {
+      // Request made but no response received
+      console.error('No response from API:', error.request);
+      console.error(`Trying to connect to: ${API_URL}`);
+      console.error('Check if backend is running and CORS is configured correctly');
+    } else {
+      // Error setting up request
+      console.error('Request setup error:', error.message);
     }
     return Promise.reject(error);
   }
