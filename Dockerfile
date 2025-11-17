@@ -19,8 +19,7 @@ COPY requirements.txt /app/backend/requirements.txt
 WORKDIR /app/backend
 RUN python3 -m venv venv && \
     /app/backend/venv/bin/pip install --upgrade pip && \
-    /app/backend/venv/bin/pip install -r /app/backend/requirements.txt && \
-    /app/backend/venv/bin/python -m spacy download en_core_web_sm
+    /app/backend/venv/bin/pip install -r /app/backend/requirements.txt
 
 # Copy application code
 WORKDIR /app
