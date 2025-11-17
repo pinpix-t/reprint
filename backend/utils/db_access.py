@@ -98,7 +98,18 @@ def get_reprints(
         if start_date or end_date:
             if 'requested_date' in df.columns:
                 initial_count = len(df)
+                # Debug: Show sample dates before filtering
+                if initial_count > 0:
+                    sample_dates = df['requested_date'].dropna().head(5).tolist()
+                    logger.info(f"Sample requested_date values before filtering: {sample_dates}")
+                    logger.info(f"Date range in data: min={df['requested_date'].min()}, max={df['requested_date'].max()}")
+                
                 if start_date:
+                    # Check how many dates are None/NaN
+                    null_dates = df['requested_date'].isna().sum()
+                    if null_dates > 0:
+                        logger.warning(f"{null_dates} records have null requested_date")
+                    
                     df = df[df['requested_date'] >= start_date]
                     logger.info(f"After start_date filter ({start_date}): {len(df)} records (from {initial_count})")
                 if end_date:
