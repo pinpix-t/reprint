@@ -27,9 +27,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser && \
     chown -R appuser:appuser /app && \
     mkdir -p /app/data && chown -R appuser:appuser /app/data && chmod 700 /app/data
 
-# Health check
+# Health check (uses default port 8000, Railway will override PORT at runtime)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
 # Switch to non-root user
 USER appuser
@@ -38,5 +38,6 @@ USER appuser
 EXPOSE 8000
 
 # Start command using venv
-CMD ["/bin/bash", "-c", "cd /app/backend && source venv/bin/activate && python -m uvicorn main:app --host 0.0.0.0 --port 8000"]
+# Use $PORT environment variable (Railway provides this)
+CMD ["/bin/bash", "-c", "cd /app/backend && source venv/bin/activate && python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
