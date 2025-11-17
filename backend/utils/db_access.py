@@ -310,9 +310,9 @@ def get_all_reprints(use_cache: bool = True) -> pd.DataFrame:
                 offset = 0
                 
                 while True:
-                    # Order by id descending to get latest records first
-                    # This ensures we get the most recent data when paginating
-                    response = supabase.table(REPRINT_TABLE).select("*").order("id", desc=True).range(offset, offset + page_size - 1).execute()
+                    # Fetch all records without ordering - we'll process dates in Python
+                    # This ensures we get all data regardless of Supabase's default order
+                    response = supabase.table(REPRINT_TABLE).select("*").range(offset, offset + page_size - 1).execute()
                     page_data = response.data if hasattr(response, 'data') else []
                     
                     if not page_data:
