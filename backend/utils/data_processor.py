@@ -6,63 +6,95 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def parse_date(date_str: Optional[str], timezone_aware: bool = False) -> Optional[datetime]:
+def parse_date(date_str: Optional[str], timezone_aware: bool = False, date_format: str = "DD/MM/YYYY") -> Optional[datetime]:
     """
     Parse date string to datetime object with proper timezone handling.
-    FIXED: Consistent date parsing with timezone awareness and DD/MM/YYYY support.
+    Supports both DD/MM/YYYY and MM/DD/YYYY formats.
+    
+    Args:
+        date_str: Date string to parse
+        timezone_aware: Whether to make the datetime timezone-aware
+        date_format: Expected format - "DD/MM/YYYY" or "MM/DD/YYYY"
     """
     if not date_str:
         return None
     
     try:
-        # Handle DD/MM/YYYY format (common in CSV and Supabase text fields)
-        # Check if it looks like DD/MM/YYYY (has / and first part is 1-31)
+        # Handle DD/MM/YYYY or MM/DD/YYYY format
         if '/' in date_str:
             parts = date_str.split(' ')
             date_part = parts[0]
             date_components = date_part.split('/')
             if len(date_components) == 3:
                 try:
-                    first_part = int(date_components[0])
-                    # If first part is 1-31, it's likely DD/MM/YYYY
-                    if 1 <= first_part <= 31:
-                        time_part = parts[1] if len(parts) > 1 else None
+                    time_part = parts[1] if len(parts) > 1 else None
+                    
+                    if date_format == "DD/MM/YYYY":
+                        # Parse as DD/MM/YYYY
+                        day, month, year = date_part.split('/')
+                    elif date_format == "MM/DD/YYYY":
+                        # Parse as MM/DD/YYYY
+                        month, day, year = date_part.split('/')
+                    else:
+                        # Try to auto-detect: if first part > 12, it's likely DD/MM/YYYY
+                        first_part = int(date_components[0])
+                        second_part = int(date_components[1])
                         
-                        try:
+                        if first_part > 12:
+                            # First part is day (DD/MM/YYYY)
                             day, month, year = date_part.split('/')
-                            year_int = int(year)
-                            month_int = int(month)
-                            day_int = int(day)
-                            
-                            # Handle 2-digit years
-                            if year_int < 100:
-                                year_int += 2000 if year_int < 50 else 1900
-                            
-                            if time_part:
-                                time_parts = time_part.split(':')
-                                hour = int(time_parts[0])
-                                minute = int(time_parts[1]) if len(time_parts) > 1 else 0
-                                dt = datetime(year_int, month_int, day_int, hour, minute)
-                            else:
-                                dt = datetime(year_int, month_int, day_int)
-                            
-                            # Make timezone-aware if requested (default to UTC)
-                            if timezone_aware and dt.tzinfo is None:
-                                dt = dt.replace(tzinfo=timezone.utc)
-                            
-                            return dt
-                        except (ValueError, IndexError) as e:
-                            logger.warning(f"Failed to parse date format DD/MM/YYYY: {date_str}, error: {e}")
-                            # Fall through to parser.parse
-                except ValueError:
-                    # Not a number, fall through to parser.parse
-                    pass
+                        elif second_part > 12:
+                            # Second part is day (MM/DD/YYYY)
+                            month, day, year = date_part.split('/')
+                        else:
+                            # Ambiguous - default to DD/MM/YYYY (most common in this dataset)
+                            day, month, year = date_part.split('/')
+                    
+                    year_int = int(year)
+                    month_int = int(month)
+                    day_int = int(day)
+                    
+                    # Handle 2-digit years
+                    if year_int < 100:
+                        year_int += 2000 if year_int < 50 else 1900
+                    
+                    # Validate date
+                    if not (1 <= month_int <= 12 and 1 <= day_int <= 31):
+                        raise ValueError(f"Invalid date: month={month_int}, day={day_int}")
+                    
+                    if time_part:
+                        time_parts = time_part.split(':')
+                        hour = int(time_parts[0])
+                        minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                        dt = datetime(year_int, month_int, day_int, hour, minute)
+                    else:
+                        dt = datetime(year_int, month_int, day_int)
+                    
+                    # Make timezone-aware if requested (default to UTC)
+                    if timezone_aware and dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    
+                    return dt
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"Failed to parse date format {date_format}: {date_str}, error: {e}")
+                    # Fall through to parser.parse
+            except ValueError:
+                # Not a number, fall through to parser.parse
+                pass
         
         # Use dateutil parser for ISO and other formats
-        # Note: dateutil might misinterpret DD/MM/YYYY as MM/DD/YYYY
-        # So we try to parse with dayfirst=True for ambiguous dates
+        # Use dayfirst=True for DD/MM/YYYY, dayfirst=False for MM/DD/YYYY
         try:
-            dt = parser.parse(date_str, dayfirst=True)
+            if date_format == "DD/MM/YYYY":
+                dt = parser.parse(date_str, dayfirst=True)
+            elif date_format == "MM/DD/YYYY":
+                dt = parser.parse(date_str, dayfirst=False)
+            else:
+                # Try both
+                try:
+                    dt = parser.parse(date_str, dayfirst=True)
+                except:
+                    dt = parser.parse(date_str, dayfirst=False)
         except:
             dt = parser.parse(date_str)
         
@@ -99,11 +131,14 @@ def process_reprint_data(data: List[Dict]) -> pd.DataFrame:
     """Process raw reprint data into normalized DataFrame."""
     df = pd.DataFrame(data)
     
-    # Parse dates
+    # Parse dates with correct format for each column
+    # 'Requested date' is DD/MM/YYYY format
     if 'Requested date' in df.columns:
-        df['requested_date'] = df['Requested date'].apply(parse_date)
+        df['requested_date'] = df['Requested date'].apply(lambda x: parse_date(x, date_format="DD/MM/YYYY"))
+    # 'Order Date' is MM/DD/YYYY format
     if 'Order Date' in df.columns:
-        df['order_date'] = df['Order Date'].apply(parse_date)
+        df['order_date'] = df['Order Date'].apply(lambda x: parse_date(x, date_format="MM/DD/YYYY"))
+    # Other dates - try to auto-detect format
     if 'Authorized Date' in df.columns:
         df['authorized_date'] = df['Authorized Date'].apply(parse_date)
     if 'ActualCONumberDispatchedDate' in df.columns:
