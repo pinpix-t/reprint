@@ -222,23 +222,22 @@ async def get_overview(
         end_date = datetime.now(timezone.utc)
     
     # Calculate start date based on requested days, relative to most recent data
-    # Add 1 day to end_date to include the full last day
     start_date = (end_date - timedelta(days=days))
-    # Make end_date inclusive by adding 1 day (then filter uses < instead of <=)
-    end_date_inclusive = end_date + timedelta(days=1)
+    # Note: get_reprints() will add 1 day internally to make end_date inclusive
+    # So we pass end_date directly (not end_date + 1 day)
     
     # Get all key metrics with the calculated date range
-    # Use end_date_inclusive to ensure the most recent day is included
-    metrics = calculate_reprint_metrics(start_date=start_date, end_date=end_date_inclusive)
-    products = get_product_metrics(start_date=start_date, end_date=end_date_inclusive, top_n=5)
-    facilities = get_facility_metrics(start_date=start_date, end_date=end_date_inclusive, top_n=5)
-    reasons = get_reason_metrics(start_date=start_date, end_date=end_date_inclusive, top_n=5)
-    trend = get_trend_data(start_date=start_date, end_date=end_date_inclusive, group_by="day")
+    metrics = calculate_reprint_metrics(start_date=start_date, end_date=end_date)
+    products = get_product_metrics(start_date=start_date, end_date=end_date, top_n=5)
+    facilities = get_facility_metrics(start_date=start_date, end_date=end_date, top_n=5)
+    reasons = get_reason_metrics(start_date=start_date, end_date=end_date, top_n=5)
+    trend = get_trend_data(start_date=start_date, end_date=end_date, group_by="day")
     
     # Previous period comparison (same duration, shifted back)
+    # Previous period ends exactly where current period starts (no gap, no overlap)
     prev_start = start_date - timedelta(days=days)
-    prev_end_inclusive = start_date + timedelta(days=1)  # Make it inclusive too
-    prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=prev_end_inclusive)
+    prev_end = start_date  # Previous period ends at start_date (not start_date + 1)
+    prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=prev_end)
     
     return {
         "total_reprints": metrics.total_reprints,

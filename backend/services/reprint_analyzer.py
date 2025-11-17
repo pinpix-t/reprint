@@ -289,7 +289,9 @@ def get_facility_product_matrix(
 
 def get_facility_drilldown(facility: str, days: int = 30) -> Dict:
     """Get detailed analysis for a specific facility."""
-    end_date = datetime.now()
+    # Use timezone-aware datetime to match overview endpoint behavior
+    from datetime import timezone
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
     
     df = get_reprints(start_date=start_date, end_date=end_date, facility=facility)
@@ -311,7 +313,7 @@ def get_facility_drilldown(facility: str, days: int = 30) -> Dict:
     if 'reprint_reason' in df.columns:
         reasons = df['reprint_reason'].value_counts().to_dict()
     
-    # Get trend
+    # Get trend - end_date will be made inclusive by get_trend_data -> get_reprints
     trend = get_trend_data(start_date, end_date, group_by="day")
     
     return {
@@ -324,7 +326,9 @@ def get_facility_drilldown(facility: str, days: int = 30) -> Dict:
 
 def get_product_drilldown(product: str, days: int = 30) -> Dict:
     """Get detailed analysis for a specific product."""
-    end_date = datetime.now()
+    # Use timezone-aware datetime to match overview endpoint behavior
+    from datetime import timezone
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
     
     df = get_reprints(start_date=start_date, end_date=end_date, product_type=product)
@@ -346,7 +350,7 @@ def get_product_drilldown(product: str, days: int = 30) -> Dict:
     if 'reprint_reason' in df.columns:
         reasons = df['reprint_reason'].value_counts().to_dict()
     
-    # Get trend
+    # Get trend - end_date will be made inclusive by get_trend_data -> get_reprints
     trend = get_trend_data(start_date, end_date, group_by="day")
     
     return {
