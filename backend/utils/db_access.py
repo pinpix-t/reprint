@@ -163,11 +163,14 @@ def _load_csv_fallback() -> pd.DataFrame:
         
         try:
             import csv
-            # Try multiple possible paths
+            # Try multiple possible paths for CSV file
             possible_paths = [
-                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'BO_reprints_rows.csv'),
-                'BO_reprints_rows.csv',
-                os.path.join('..', 'BO_reprints_rows.csv')
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'BO_reprints_rows.csv'),  # Root directory
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'BO_reprints_rows.csv'),  # Backend directory
+                'BO_reprints_rows.csv',  # Current directory
+                os.path.join('..', 'BO_reprints_rows.csv'),  # Parent directory
+                '/app/BO_reprints_rows.csv',  # Docker container root
+                '/app/backend/BO_reprints_rows.csv',  # Docker backend directory
             ]
             csv_path = None
             for path in possible_paths:

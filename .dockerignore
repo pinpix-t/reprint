@@ -48,8 +48,9 @@ tests/
 test_*.py
 *_test.py
 
-# Data files (don't copy large CSVs into image)
+# Data files (don't copy large CSVs into image, except BO_reprints_rows.csv)
 *.csv
+!BO_reprints_rows.csv
 *.xlsx
 *.xls
 
