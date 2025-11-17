@@ -228,15 +228,17 @@ async def get_overview(
     end_date_inclusive = end_date + timedelta(days=1)
     
     # Get all key metrics with the calculated date range
+    # Use end_date_inclusive to ensure the most recent day is included
     metrics = calculate_reprint_metrics(start_date=start_date, end_date=end_date_inclusive)
-    products = get_product_metrics(start_date=start_date, end_date=end_date, top_n=5)
-    facilities = get_facility_metrics(start_date=start_date, end_date=end_date, top_n=5)
-    reasons = get_reason_metrics(start_date=start_date, end_date=end_date, top_n=5)
-    trend = get_trend_data(start_date=start_date, end_date=end_date, group_by="day")
+    products = get_product_metrics(start_date=start_date, end_date=end_date_inclusive, top_n=5)
+    facilities = get_facility_metrics(start_date=start_date, end_date=end_date_inclusive, top_n=5)
+    reasons = get_reason_metrics(start_date=start_date, end_date=end_date_inclusive, top_n=5)
+    trend = get_trend_data(start_date=start_date, end_date=end_date_inclusive, group_by="day")
     
     # Previous period comparison (same duration, shifted back)
     prev_start = start_date - timedelta(days=days)
-    prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=start_date)
+    prev_end_inclusive = start_date + timedelta(days=1)  # Make it inclusive too
+    prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=prev_end_inclusive)
     
     return {
         "total_reprints": metrics.total_reprints,
