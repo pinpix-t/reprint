@@ -222,10 +222,13 @@ async def get_overview(
         end_date = datetime.now(timezone.utc)
     
     # Calculate start date based on requested days, relative to most recent data
-    start_date = end_date - timedelta(days=days)
+    # Add 1 day to end_date to include the full last day
+    start_date = (end_date - timedelta(days=days))
+    # Make end_date inclusive by adding 1 day (then filter uses < instead of <=)
+    end_date_inclusive = end_date + timedelta(days=1)
     
     # Get all key metrics with the calculated date range
-    metrics = calculate_reprint_metrics(start_date=start_date, end_date=end_date)
+    metrics = calculate_reprint_metrics(start_date=start_date, end_date=end_date_inclusive)
     products = get_product_metrics(start_date=start_date, end_date=end_date, top_n=5)
     facilities = get_facility_metrics(start_date=start_date, end_date=end_date, top_n=5)
     reasons = get_reason_metrics(start_date=start_date, end_date=end_date, top_n=5)
