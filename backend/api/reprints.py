@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from typing import Optional, List
 from datetime import datetime, timedelta
+from utils.rate_limiter import limiter, DEFAULT_RATE_LIMIT
 from services.reprint_analyzer import (
     calculate_reprint_metrics,
     get_product_metrics,
@@ -189,7 +190,9 @@ async def get_product_details(
     return get_product_drilldown(product, days=days)
 
 @router.get("/overview")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_overview(
+    request: Request,
     days: int = Query(7, description="Number of days for overview")
 ):
     """Get overview metrics for dashboard."""

@@ -15,6 +15,7 @@ from services.reprint_analyzer import get_all_reprints
 from services.review_analyzer import analyze_reviews
 from services.freshdesk_client import fetch_tickets, filter_quality_tickets
 from utils.ticket_matcher import get_ticket_reprint_stats
+from utils.job_locker import job_lock
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -60,16 +61,21 @@ def refresh_freshdesk_data():
         return False
 
 def run_daily_refresh():
-    """Run all daily refresh tasks."""
-    logger.info("Starting daily refresh...")
-    results = {
-        "reprints": refresh_reprint_data(),
-        "reviews": refresh_review_analysis(),
-        "freshdesk": refresh_freshdesk_data()
-    }
-    
-    logger.info(f"Daily refresh completed: {results}")
-    return results
+    """Run all daily refresh tasks with job locking to prevent concurrent execution."""
+    with job_lock('daily_refresh') as acquired:
+        if not acquired:
+            logger.warning("Daily refresh already running, skipping this execution")
+            return {"status": "skipped", "reason": "already_running"}
+        
+        logger.info("Starting daily refresh...")
+        results = {
+            "reprints": refresh_reprint_data(),
+            "reviews": refresh_review_analysis(),
+            "freshdesk": refresh_freshdesk_data()
+        }
+        
+        logger.info(f"Daily refresh completed: {results}")
+        return results
 
 if __name__ == "__main__":
     run_daily_refresh()

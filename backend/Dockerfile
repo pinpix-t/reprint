@@ -29,9 +29,13 @@ RUN mkdir -p /app/data && chown -R appuser:appuser /app/data && chmod 700 /app/d
 # Expose port
 EXPOSE 8000
 
+# Health check - use curl or wget instead of Python requests
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health', timeout=5)" || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
 # SECURITY: Switch to non-root user
 USER appuser

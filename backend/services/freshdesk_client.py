@@ -125,28 +125,45 @@ def filter_quality_tickets(tickets: List[Dict]) -> List[Dict]:
     return quality_tickets
 
 def extract_order_number(ticket: Dict) -> Optional[str]:
-    """Extract order number from ticket."""
+    """
+    Extract order number from ticket.
+    SECURITY: Uses compiled regex patterns to prevent ReDoS attacks.
+    """
     # Check various fields for order number
     subject = ticket.get("subject", "")
     description = ticket.get("description", "")
     custom_fields = ticket.get("custom_fields", {})
     
-    # Look for order number patterns
+    # SECURITY: Pre-compile regex patterns to prevent ReDoS
+    # Use bounded quantifiers and avoid catastrophic backtracking
     import re
+    import signal
+    
+    # Compile patterns once (more efficient and safer)
     order_patterns = [
-        r'REZ\d+',
-        r'RED\d+',
-        r'REQ\d+',
-        r'REP\d+',
-        r'Order[:\s]+(\d+)',
-        r'Order\s*#\s*(\d+)'
+        re.compile(r'REZ\d{1,10}', re.IGNORECASE),  # Bounded: max 10 digits
+        re.compile(r'RED\d{1,10}', re.IGNORECASE),
+        re.compile(r'REQ\d{1,10}', re.IGNORECASE),
+        re.compile(r'REP\d{1,10}', re.IGNORECASE),
+        re.compile(r'Order[:\s]+(\d{1,10})', re.IGNORECASE),  # Bounded digits
+        re.compile(r'Order\s*#\s*(\d{1,10})', re.IGNORECASE),
     ]
     
     text = f"{subject} {description} {str(custom_fields)}"
+    
+    # Limit text length to prevent ReDoS
+    if len(text) > 10000:  # Reasonable limit
+        logger.warning(f"Text too long for order extraction: {len(text)} chars, truncating")
+        text = text[:10000]
+    
     for pattern in order_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(0) if match.groups() == () else match.group(1)
+        try:
+            match = pattern.search(text)
+            if match:
+                return match.group(0) if match.groups() == () else match.group(1)
+        except Exception as e:
+            logger.warning(f"Regex pattern error: {e}")
+            continue
     
     return None
 

@@ -29,14 +29,21 @@ def setup_schedule():
     logger.info("Scheduler configured")
 
 def generate_weekly_report():
-    """Generate weekly summary report."""
+    """Generate weekly summary report with job locking."""
     from services.report_generator import generate_weekly_summary
-    try:
-        logger.info("Generating weekly report...")
-        generate_weekly_summary()
-        logger.info("Weekly report generated")
-    except Exception as e:
-        logger.error(f"Error generating weekly report: {e}")
+    from utils.job_locker import job_lock
+    
+    with job_lock('weekly_report') as acquired:
+        if not acquired:
+            logger.warning("Weekly report generation already running, skipping")
+            return
+        
+        try:
+            logger.info("Generating weekly report...")
+            generate_weekly_summary()
+            logger.info("Weekly report generated")
+        except Exception as e:
+            logger.error(f"Error generating weekly report: {e}", exc_info=True)
 
 def run_scheduler():
     """Run the scheduler (blocking)."""

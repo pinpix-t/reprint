@@ -3,6 +3,8 @@ Report generation service for weekly/daily summaries.
 """
 from datetime import datetime, timedelta
 from typing import Dict
+import os
+import logging
 from services.reprint_analyzer import (
     calculate_reprint_metrics,
     get_product_metrics,
@@ -14,6 +16,9 @@ from services.review_analyzer import analyze_reviews
 from services.freshdesk_client import fetch_tickets, filter_quality_tickets
 from utils.ticket_matcher import get_ticket_reprint_stats
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 def generate_weekly_summary() -> Dict:
     """Generate weekly summary report."""
@@ -118,9 +123,53 @@ def generate_daily_summary() -> Dict:
     return report
 
 def save_report(report: Dict, filename: str):
-    """Save report to JSON file."""
-    with open(filename, 'w') as f:
-        json.dump(report, f, indent=2)
+    """
+    Save report to JSON file using atomic write.
+    SECURITY: Uses atomic file operations to prevent data corruption.
+    """
+    import tempfile
+    import shutil
+    
+    # SECURITY: Atomic write - write to temp file then rename
+    # This ensures file is either fully written or not present (no partial writes)
+    try:
+        # Create temp file in same directory
+        dirname = os.path.dirname(filename) or '.'
+        temp_fd, temp_path = tempfile.mkstemp(
+            dir=dirname,
+            prefix=os.path.basename(filename) + '.tmp.',
+            suffix='.json'
+        )
+        
+        try:
+            # Write to temp file
+            with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
+            
+            # Atomic rename (works on Unix, Windows requires different approach)
+            if os.name == 'nt':  # Windows
+                # On Windows, rename might fail if file exists
+                if os.path.exists(filename):
+                    os.remove(filename)
+                shutil.move(temp_path, filename)
+            else:  # Unix/Linux
+                os.rename(temp_path, filename)
+            
+            logger.info(f"Report saved atomically to {filename}")
+            
+        except Exception as e:
+            # Clean up temp file on error
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+            raise e
+            
+    except Exception as e:
+        logger.error(f"Error saving report to {filename}: {e}", exc_info=True)
+        raise
 
 def generate_and_save_weekly_report():
     """Generate and save weekly report."""

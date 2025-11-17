@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from typing import Optional
 from datetime import datetime, timedelta
+from utils.rate_limiter import limiter, DEFAULT_RATE_LIMIT
 from services.review_analyzer import analyze_reviews, get_review_summary, get_product_quality_summary
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
@@ -17,7 +18,9 @@ async def analyze_reviews_endpoint(
     return analyze_reviews(start_date=start, end_date=end)
 
 @router.get("/summary")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_review_summary_endpoint(
+    request: Request,
     days: int = Query(7, description="Number of days to analyze")
 ):
     """Get review summary for the last N days."""

@@ -6,6 +6,8 @@ import time
 import logging
 from config import CORS_ORIGINS, API_TIMEOUT_SECONDS
 from api import reviews, reprints, freshdesk
+from utils.rate_limiter import limiter, get_rate_limit_handler
+from slowapi.errors import RateLimitExceeded
 
 # Configure logging
 logging.basicConfig(
@@ -15,6 +17,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Quality/Damage Analysis API", version="1.0.0")
+
+# SECURITY: Add rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, get_rate_limit_handler())
 
 # SECURITY: Restrict CORS to specific origins and methods
 app.add_middleware(

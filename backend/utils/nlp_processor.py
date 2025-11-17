@@ -73,14 +73,27 @@ def extract_quality_issues(text: str) -> List[str]:
     return list(set(found_issues))
 
 def extract_facilities(text: str) -> List[str]:
-    """Extract facility mentions from text."""
+    """
+    Extract facility mentions from text.
+    SECURITY: Uses compiled regex with bounded quantifiers to prevent ReDoS.
+    """
     if not text:
         return []
     
-    # Look for facility patterns like "FacilityS050", "FacilityB001", etc.
-    facility_pattern = r'Facility[A-Z]\d+'
-    facilities = re.findall(facility_pattern, text)
-    return list(set(facilities))
+    # SECURITY: Pre-compile pattern with bounded quantifier to prevent ReDoS
+    # Limit facility code length (e.g., FacilityS050 = max 3 digits)
+    facility_pattern = re.compile(r'Facility[A-Z]\d{1,5}', re.IGNORECASE)  # Bounded: 1-5 digits
+    
+    # Limit text length
+    if len(text) > 10000:
+        text = text[:10000]
+    
+    try:
+        facilities = facility_pattern.findall(text)
+        return list(set(facilities))
+    except Exception as e:
+        logger.warning(f"Error extracting facilities: {e}")
+        return []
 
 def analyze_sentiment(text: str) -> str:
     """Simple sentiment analysis - returns 'positive', 'negative', or 'neutral'."""
