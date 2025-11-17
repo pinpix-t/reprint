@@ -297,19 +297,37 @@ def _load_csv_fallback() -> pd.DataFrame:
 
 def get_all_reprints(use_cache: bool = True) -> pd.DataFrame:
     """
-    Fetch all reprint data from Supabase.
+    Fetch all reprint data from Supabase with pagination.
     Falls back to CSV if Supabase fails.
     """
     try:
         # Try Supabase first
         if SUPABASE_AVAILABLE and supabase:
             try:
-                response = supabase.table(REPRINT_TABLE).select("*").execute()
-                data = response.data if hasattr(response, 'data') else []
+                # Supabase has a default limit, so we need to paginate to get ALL records
+                all_data = []
+                page_size = 1000  # Supabase max per request
+                offset = 0
                 
-                if data:
-                    logger.info(f"Fetched {len(data)} records from Supabase")
-                    return process_reprint_data(data)
+                while True:
+                    response = supabase.table(REPRINT_TABLE).select("*").range(offset, offset + page_size - 1).execute()
+                    page_data = response.data if hasattr(response, 'data') else []
+                    
+                    if not page_data:
+                        break
+                    
+                    all_data.extend(page_data)
+                    logger.info(f"Fetched {len(page_data)} records from Supabase (offset {offset}, total so far: {len(all_data)})")
+                    
+                    # If we got fewer than page_size, we've reached the end
+                    if len(page_data) < page_size:
+                        break
+                    
+                    offset += page_size
+                
+                if all_data:
+                    logger.info(f"Fetched {len(all_data)} total records from Supabase")
+                    return process_reprint_data(all_data)
                 else:
                     logger.warning("No data from Supabase, falling back to CSV")
             except Exception as e:
