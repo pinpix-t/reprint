@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import threading
+import fcntl
 from functools import lru_cache
 
 # Add parent directory to path for imports
@@ -26,7 +27,7 @@ COLUMN_FACILITY_NAME = "ActualFacilityName"
 COLUMN_PRODUCT_TYPE = "Product Type"
 COLUMN_ORDER_NUMBER = "Order Number"
 
-# Thread-safe CSV cache
+# Thread-safe CSV cache with file locking
 _csv_lock = threading.Lock()
 _csv_cache: Optional[pd.DataFrame] = None
 
@@ -89,7 +90,10 @@ def get_reprints(
 
 @lru_cache(maxsize=1)
 def _load_csv_fallback() -> pd.DataFrame:
-    """Load CSV data with caching and thread safety."""
+    """
+    Load CSV data with caching, thread safety, and file locking.
+    Uses fcntl for cross-process file locking on Unix systems.
+    """
     global _csv_cache
     
     with _csv_lock:
@@ -112,9 +116,34 @@ def _load_csv_fallback() -> pd.DataFrame:
             
             if csv_path:
                 data = []
-                with open(csv_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    data = list(reader)
+                # SECURITY: Use file locking to prevent concurrent access issues
+                # fcntl provides advisory file locking (works across processes)
+                try:
+                    with open(csv_path, 'r', encoding='utf-8') as f:
+                        # Acquire exclusive lock (non-blocking)
+                        try:
+                            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                            logger.debug(f"Acquired file lock for {csv_path}")
+                        except BlockingIOError:
+                            # Another process has the lock, wait briefly
+                            logger.warning(f"File {csv_path} is locked, waiting...")
+                            fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Blocking lock
+                        
+                        try:
+                            reader = csv.DictReader(f)
+                            data = list(reader)
+                        finally:
+                            # Release lock
+                            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                            logger.debug(f"Released file lock for {csv_path}")
+                except (OSError, IOError) as e:
+                    # Fallback for systems without fcntl (e.g., Windows)
+                    # Use thread lock only (already held by _csv_lock)
+                    logger.warning(f"File locking not available ({e}), using thread lock only")
+                    with open(csv_path, 'r', encoding='utf-8') as f:
+                        reader = csv.DictReader(f)
+                        data = list(reader)
+                
                 _csv_cache = process_reprint_data(data)
                 logger.info(f"Loaded {len(_csv_cache)} records from CSV fallback")
                 return _csv_cache
