@@ -1,13 +1,36 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_TIMEOUT_MS = 30000; // 30 seconds timeout
 
 const api = axios.create({
   baseURL: API_URL,
+  timeout: API_TIMEOUT_MS, // Request timeout
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor for logging
+api.interceptors.request.use(
+  (config) => {
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.code === 'ECONNABORTED') {
+      console.error('Request timeout');
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface OverviewData {
   total_reprints: number;

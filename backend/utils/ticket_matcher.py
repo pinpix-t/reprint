@@ -1,26 +1,50 @@
 from typing import List, Dict, Optional
+import logging
 from services.freshdesk_client import extract_order_number
-from utils.db_access import get_reprints
+from utils.db_access import get_all_reprints, COLUMN_ORDER_NUMBER
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 def match_tickets_to_reprints(tickets: List[Dict]) -> List[Dict]:
-    """Match Freshdesk tickets to reprint records."""
+    """
+    Match Freshdesk tickets to reprint records.
+    FIXED: N+1 query problem - loads all reprints once and uses O(1) lookup.
+    """
     matched = []
     
-    for ticket in tickets:
-        order_number = extract_order_number(ticket)
+    if not tickets:
+        return matched
+    
+    try:
+        # PERFORMANCE FIX: Load all reprints once instead of per-ticket (N+1 problem)
+        df = get_all_reprints()
         
-        if not order_number:
-            continue
+        if df.empty or COLUMN_ORDER_NUMBER not in df.columns:
+            logger.warning("No reprint data available for matching")
+            return matched
         
-        # Search for reprint with matching order number
-        # Note: Adjust column name based on your schema
-        try:
-            df = get_reprints()
-            if not df.empty and 'Order Number' in df.columns:
-                matching_reprints = df[df['Order Number'] == order_number]
+        # Create O(1) lookup dictionary by order number
+        # Handle multiple reprints per order number
+        order_lookup: Dict[str, pd.DataFrame] = {}
+        for order_num in df[COLUMN_ORDER_NUMBER].dropna().unique():
+            order_lookup[str(order_num)] = df[df[COLUMN_ORDER_NUMBER] == order_num]
+        
+        logger.info(f"Created lookup for {len(order_lookup)} unique order numbers")
+        
+        # Match tickets using O(1) lookup
+        for ticket in tickets:
+            order_number = extract_order_number(ticket)
+            
+            if not order_number:
+                continue
+            
+            try:
+                # O(1) lookup instead of O(n) search
+                matching_reprints = order_lookup.get(str(order_number))
                 
-                if not matching_reprints.empty:
+                if matching_reprints is not None and not matching_reprints.empty:
+                    # Use first match if multiple exist
                     reprint = matching_reprints.iloc[0].to_dict()
                     matched.append({
                         "ticket_id": ticket.get("id"),
@@ -33,11 +57,16 @@ def match_tickets_to_reprints(tickets: List[Dict]) -> List[Dict]:
                         "product_type": reprint.get("Product Type"),
                         "facility": reprint.get("ActualFacilityName") or reprint.get("Reprinted Facility Name")
                     })
-        except Exception as e:
-            print(f"Error matching ticket {ticket.get('id')}: {e}")
-            continue
-    
-    return matched
+            except Exception as e:
+                logger.error(f"Error matching ticket {ticket.get('id')}: {e}", exc_info=True)
+                continue
+        
+        logger.info(f"Matched {len(matched)} out of {len(tickets)} tickets")
+        return matched
+        
+    except Exception as e:
+        logger.error(f"Error in match_tickets_to_reprints: {e}", exc_info=True)
+        return matched
 
 def get_ticket_reprint_stats(tickets: List[Dict]) -> Dict:
     """Get statistics about tickets and their relationship to reprints."""

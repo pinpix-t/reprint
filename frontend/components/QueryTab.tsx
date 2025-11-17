@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../lib/api';
 import TrendChart from './charts/TrendChart';
 import BarChart from './charts/BarChart';
@@ -21,13 +21,35 @@ export default function QueryTab() {
   const [reasons, setReasons] = useState<any[]>([]);
   const [drilldownData, setDrilldownData] = useState<any>(null);
   const [drilldownType, setDrilldownType] = useState<'facility' | 'product' | null>(null);
+  
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadData();
+    
+    // Cleanup: prevent state updates on unmounted component
+    return () => {
+      isMountedRef.current = false;
+      // Cancel any pending requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [startDate, endDate, facility, productType]);
 
   const loadData = async () => {
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
     try {
+      if (!isMountedRef.current) return;
+      
       setLoading(true);
       setError(null);
 
@@ -40,39 +62,60 @@ export default function QueryTab() {
         apiClient.getReasonMetrics(startDate, endDate),
       ]);
 
-      setMetrics(metricsData);
-      setComparison(comparisonData);
-      setTrend(trendData);
-      setProducts(productsData);
-      setFacilities(facilitiesData);
-      setReasons(reasonsData);
-    } catch (err) {
-      setError('Failed to load data');
-      console.error(err);
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setMetrics(metricsData);
+        setComparison(comparisonData);
+        setTrend(trendData);
+        setProducts(productsData);
+        setFacilities(facilitiesData);
+        setReasons(reasonsData);
+      }
+    } catch (err: any) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
+      
+      if (isMountedRef.current) {
+        setError('Failed to load data');
+        console.error(err);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const handleDrilldown = async (type: 'facility' | 'product', value: string) => {
     try {
+      if (!isMountedRef.current) return;
+      
       setLoading(true);
       const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
       
+      let data;
       if (type === 'facility') {
-        const data = await apiClient.getFacilityDetails(value, days);
-        setDrilldownData(data);
-        setDrilldownType('facility');
+        data = await apiClient.getFacilityDetails(value, days);
       } else {
-        const data = await apiClient.getProductDetails(value, days);
-        setDrilldownData(data);
-        setDrilldownType('product');
+        data = await apiClient.getProductDetails(value, days);
       }
-    } catch (err) {
-      setError('Failed to load drilldown data');
-      console.error(err);
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setDrilldownData(data);
+        setDrilldownType(type);
+      }
+    } catch (err: any) {
+      if (isMountedRef.current) {
+        setError('Failed to load drilldown data');
+        console.error(err);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

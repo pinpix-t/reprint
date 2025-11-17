@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { apiClient, ReviewAnalysis } from '../lib/api';
 import BarChart from './charts/BarChart';
 import PieChart from './charts/PieChart';
@@ -8,22 +8,39 @@ export default function ReviewInsightsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(7);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadData();
+    
+    // Cleanup: prevent state updates on unmounted component
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [days]);
 
   const loadData = async () => {
     try {
+      if (!isMountedRef.current) return;
+      
       setLoading(true);
       setError(null);
       const summary = await apiClient.getReviewSummary(days);
-      setData(summary);
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setData(summary);
+      }
     } catch (err) {
-      setError('Failed to load review data');
-      console.error(err);
+      if (isMountedRef.current) {
+        setError('Failed to load review data');
+        console.error(err);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

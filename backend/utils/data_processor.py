@@ -1,25 +1,65 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import pandas as pd
 from dateutil import parser
+import logging
 
-def parse_date(date_str: Optional[str]) -> Optional[datetime]:
-    """Parse date string to datetime object."""
+logger = logging.getLogger(__name__)
+
+def parse_date(date_str: Optional[str], timezone_aware: bool = False) -> Optional[datetime]:
+    """
+    Parse date string to datetime object with proper timezone handling.
+    FIXED: Consistent date parsing with timezone awareness.
+    """
     if not date_str:
         return None
+    
     try:
-        # Handle DD/MM/YYYY format
-        if '/' in date_str:
+        # Handle DD/MM/YYYY format (common in CSV)
+        if '/' in date_str and not date_str.startswith('20'):  # Likely DD/MM/YYYY
             parts = date_str.split(' ')
             date_part = parts[0]
             time_part = parts[1] if len(parts) > 1 else None
-            day, month, year = date_part.split('/')
-            if time_part:
-                hour, minute = time_part.split(':')
-                return datetime(int(year), int(month), int(day), int(hour), int(minute))
-            return datetime(int(year), int(month), int(day))
-        return parser.parse(date_str)
-    except:
+            
+            try:
+                day, month, year = date_part.split('/')
+                year_int = int(year)
+                month_int = int(month)
+                day_int = int(day)
+                
+                # Handle 2-digit years
+                if year_int < 100:
+                    year_int += 2000 if year_int < 50 else 1900
+                
+                if time_part:
+                    time_parts = time_part.split(':')
+                    hour = int(time_parts[0])
+                    minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                    dt = datetime(year_int, month_int, day_int, hour, minute)
+                else:
+                    dt = datetime(year_int, month_int, day_int)
+                
+                # Make timezone-aware if requested (default to UTC)
+                if timezone_aware and dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                
+                return dt
+            except (ValueError, IndexError) as e:
+                logger.warning(f"Failed to parse date format DD/MM/YYYY: {date_str}, error: {e}")
+                # Fall through to parser.parse
+        
+        # Use dateutil parser for ISO and other formats
+        dt = parser.parse(date_str)
+        
+        # Ensure timezone awareness
+        if timezone_aware and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        elif not timezone_aware and dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        
+        return dt
+    except Exception as e:
+        logger.warning(f"Failed to parse date: {date_str}, error: {e}")
         return None
 
 def normalize_facility_name(facility: Optional[str]) -> str:

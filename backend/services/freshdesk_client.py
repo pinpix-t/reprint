@@ -1,8 +1,14 @@
 import requests
 from typing import List, Dict, Optional
 from datetime import datetime
-from config import FRESHDESK_API_KEY, FRESHDESK_DOMAIN
+from config import FRESHDESK_API_KEY, FRESHDESK_DOMAIN, API_TIMEOUT_SECONDS
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Request timeout constant
+REQUEST_TIMEOUT = API_TIMEOUT_SECONDS
 
 def get_freshdesk_auth() -> str:
     """Get Freshdesk API authentication header."""
@@ -44,11 +50,23 @@ def fetch_tickets(
         params["updated_since"] = updated_since.isoformat()
     
     try:
-        response = requests.get(url, headers=headers, params=params, auth=(FRESHDESK_API_KEY, "X"))
+        response = requests.get(
+            url, 
+            headers=headers, 
+            params=params, 
+            auth=(FRESHDESK_API_KEY, "X"),
+            timeout=REQUEST_TIMEOUT
+        )
         response.raise_for_status()
         return response.json()
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout fetching Freshdesk tickets after {REQUEST_TIMEOUT}s")
+        return []
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching Freshdesk tickets: {e}", exc_info=True)
+        return []
     except Exception as e:
-        print(f"Error fetching Freshdesk tickets: {e}")
+        logger.error(f"Unexpected error fetching Freshdesk tickets: {e}", exc_info=True)
         return []
 
 def fetch_ticket(ticket_id: int, domain: Optional[str] = None) -> Optional[Dict]:
@@ -67,11 +85,22 @@ def fetch_ticket(ticket_id: int, domain: Optional[str] = None) -> Optional[Dict]
     }
     
     try:
-        response = requests.get(url, headers=headers, auth=(FRESHDESK_API_KEY, "X"))
+        response = requests.get(
+            url, 
+            headers=headers, 
+            auth=(FRESHDESK_API_KEY, "X"),
+            timeout=REQUEST_TIMEOUT
+        )
         response.raise_for_status()
         return response.json()
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout fetching Freshdesk ticket {ticket_id} after {REQUEST_TIMEOUT}s")
+        return None
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching Freshdesk ticket {ticket_id}: {e}", exc_info=True)
+        return None
     except Exception as e:
-        print(f"Error fetching Freshdesk ticket {ticket_id}: {e}")
+        logger.error(f"Unexpected error fetching Freshdesk ticket {ticket_id}: {e}", exc_info=True)
         return None
 
 def filter_quality_tickets(tickets: List[Dict]) -> List[Dict]:

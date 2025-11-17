@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { apiClient, OverviewData } from '../lib/api';
 import MetricCard from './charts/MetricCard';
 import TrendChart from './charts/TrendChart';
@@ -10,22 +10,39 @@ export default function OverviewTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(7);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadData();
+    
+    // Cleanup: prevent state updates on unmounted component
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [days]);
 
   const loadData = async () => {
     try {
+      if (!isMountedRef.current) return;
+      
       setLoading(true);
       setError(null);
       const overview = await apiClient.getOverview(days);
-      setData(overview);
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setData(overview);
+      }
     } catch (err) {
-      setError('Failed to load overview data');
-      console.error(err);
+      if (isMountedRef.current) {
+        setError('Failed to load overview data');
+        console.error(err);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
