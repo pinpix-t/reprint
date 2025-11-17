@@ -37,17 +37,21 @@ def parse_date(date_str: Optional[str], timezone_aware: bool = False, date_forma
                         month, day, year = date_part.split('/')
                     else:
                         # Try to auto-detect: if first part > 12, it's likely DD/MM/YYYY
-                        first_part = int(date_components[0])
-                        second_part = int(date_components[1])
-                        
-                        if first_part > 12:
-                            # First part is day (DD/MM/YYYY)
-                            day, month, year = date_part.split('/')
-                        elif second_part > 12:
-                            # Second part is day (MM/DD/YYYY)
-                            month, day, year = date_part.split('/')
-                        else:
-                            # Ambiguous - default to DD/MM/YYYY (most common in this dataset)
+                        try:
+                            first_part = int(date_components[0])
+                            second_part = int(date_components[1])
+                            
+                            if first_part > 12:
+                                # First part is day (DD/MM/YYYY)
+                                day, month, year = date_part.split('/')
+                            elif second_part > 12:
+                                # Second part is day (MM/DD/YYYY)
+                                month, day, year = date_part.split('/')
+                            else:
+                                # Ambiguous - default to DD/MM/YYYY (most common in this dataset)
+                                day, month, year = date_part.split('/')
+                        except ValueError:
+                            # Not a number, default to DD/MM/YYYY
                             day, month, year = date_part.split('/')
                     
                     year_int = int(year)
@@ -78,9 +82,6 @@ def parse_date(date_str: Optional[str], timezone_aware: bool = False, date_forma
                 except (ValueError, IndexError) as e:
                     logger.warning(f"Failed to parse date format {date_format}: {date_str}, error: {e}")
                     # Fall through to parser.parse
-            except ValueError:
-                # Not a number, fall through to parser.parse
-                pass
         
         # Use dateutil parser for ISO and other formats
         # Use dayfirst=True for DD/MM/YYYY, dayfirst=False for MM/DD/YYYY
