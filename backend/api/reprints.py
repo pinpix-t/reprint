@@ -193,22 +193,41 @@ async def get_product_details(
 @limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_overview(
     request: Request,
-    days: int = Query(7, description="Number of days for overview")
+    days: int = Query(30, description="Number of days for overview")
 ):
     """Get overview metrics for dashboard."""
-    end_date = datetime.now()
+    # Use UTC timezone-aware datetime to avoid timezone issues
+    from datetime import timezone
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
     
-    # Get all key metrics
-    metrics = calculate_reprint_metrics(start_date=start_date, end_date=end_date)
-    products = get_product_metrics(start_date=start_date, end_date=end_date, top_n=5)
-    facilities = get_facility_metrics(start_date=start_date, end_date=end_date, top_n=5)
-    reasons = get_reason_metrics(start_date=start_date, end_date=end_date, top_n=5)
-    trend = get_trend_data(start_date=start_date, end_date=end_date, group_by="day")
+    # If no data found in recent range, try a wider range (last year)
+    # This handles cases where data is older than the requested range
     
-    # Previous period comparison
-    prev_start = start_date - timedelta(days=days)
-    prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=start_date)
+    # Get all key metrics
+    # First try with the requested date range
+    metrics = calculate_reprint_metrics(start_date=start_date, end_date=end_date)
+    
+    # If no data found, try without date filters (get all data)
+    if metrics.total_reprints == 0:
+        # Try a much wider range (last 2 years) to find any data
+        wide_start = end_date - timedelta(days=730)
+        metrics = calculate_reprint_metrics(start_date=wide_start, end_date=end_date)
+        products = get_product_metrics(start_date=wide_start, end_date=end_date, top_n=5)
+        facilities = get_facility_metrics(start_date=wide_start, end_date=end_date, top_n=5)
+        reasons = get_reason_metrics(start_date=wide_start, end_date=end_date, top_n=5)
+        trend = get_trend_data(start_date=wide_start, end_date=end_date, group_by="day")
+        # For previous period, use the same wide range shifted back
+        prev_start = wide_start - timedelta(days=days)
+        prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=wide_start)
+    else:
+        products = get_product_metrics(start_date=start_date, end_date=end_date, top_n=5)
+        facilities = get_facility_metrics(start_date=start_date, end_date=end_date, top_n=5)
+        reasons = get_reason_metrics(start_date=start_date, end_date=end_date, top_n=5)
+        trend = get_trend_data(start_date=start_date, end_date=end_date, group_by="day")
+        # Previous period comparison
+        prev_start = start_date - timedelta(days=days)
+        prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=start_date)
     
     return {
         "total_reprints": metrics.total_reprints,
