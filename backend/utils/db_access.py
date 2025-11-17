@@ -110,12 +110,21 @@ def get_reprints(
                     if null_dates > 0:
                         logger.warning(f"{null_dates} records have null requested_date")
                     
+                    # Convert timezone-aware datetime to naive if needed (DataFrame dates are naive)
+                    if start_date.tzinfo is not None:
+                        start_date = start_date.replace(tzinfo=None)
+                    
                     df = df[df['requested_date'] >= start_date]
                     logger.info(f"After start_date filter ({start_date}): {len(df)} records (from {initial_count})")
                 if end_date:
                     # Include full end date
                     from datetime import timedelta
                     end_date_inclusive = end_date + timedelta(days=1)
+                    
+                    # Convert timezone-aware datetime to naive if needed (DataFrame dates are naive)
+                    if end_date_inclusive.tzinfo is not None:
+                        end_date_inclusive = end_date_inclusive.replace(tzinfo=None)
+                    
                     before_end_filter = len(df)
                     df = df[df['requested_date'] < end_date_inclusive]
                     logger.info(f"After end_date filter (<{end_date_inclusive}): {len(df)} records (from {before_end_filter})")
