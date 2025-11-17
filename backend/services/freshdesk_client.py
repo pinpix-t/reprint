@@ -137,7 +137,6 @@ def extract_order_number(ticket: Dict) -> Optional[str]:
     # SECURITY: Pre-compile regex patterns to prevent ReDoS
     # Use bounded quantifiers and avoid catastrophic backtracking
     import re
-    import signal
     
     # Compile patterns once (more efficient and safer)
     order_patterns = [
