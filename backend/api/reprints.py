@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, Request
 from typing import Optional, List
 from datetime import datetime, timedelta
+import pandas as pd
 from utils.rate_limiter import limiter, DEFAULT_RATE_LIMIT
 from services.reprint_analyzer import (
     calculate_reprint_metrics,
