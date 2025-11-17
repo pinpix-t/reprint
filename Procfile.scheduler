@@ -1,2 +1,2 @@
-scheduler: cd backend && source venv/bin/activate && python -m jobs.scheduler
+scheduler: /bin/bash -c "export PYTHONPATH=/app/backend && /app/backend/venv/bin/python -m jobs.scheduler"
 

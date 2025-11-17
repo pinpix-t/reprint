@@ -37,6 +37,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser && \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
+# Set PYTHONPATH so Python can find modules
+ENV PYTHONPATH=/app/backend
+
 # Switch to non-root user
 USER appuser
 
@@ -45,5 +48,6 @@ EXPOSE 8000
 
 # Start command using venv
 # Use $PORT environment variable (Railway provides this)
-CMD ["/bin/bash", "-c", "cd /app/backend && source venv/bin/activate && python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Use absolute paths to avoid cd issues
+CMD ["/bin/bash", "-c", "/app/backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --chdir /app/backend"]
 
