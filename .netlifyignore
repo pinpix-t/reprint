@@ -1,0 +1,13 @@
+backend/
+*.py
+requirements.txt
+.python-version
+Dockerfile
+docker-compose.yml
+railway.json
+railway.toml
+Procfile
+*.md
+!.github/
+.github/
+

@@ -1,0 +1,13 @@
+[build]
+  base = "frontend"
+  command = "npm install && npm run build"
+  publish = "frontend/.next"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_FLAGS = "--legacy-peer-deps"
+  PYTHON_VERSION = ""
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
