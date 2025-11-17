@@ -7,6 +7,7 @@ import logging
 from config import CORS_ORIGINS, API_TIMEOUT_SECONDS
 from api import reviews, reprints, freshdesk
 from api.date_check import router as date_check_router
+from api.jobs import router as jobs_router
 from utils.rate_limiter import limiter, get_rate_limit_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -69,6 +70,7 @@ app.include_router(reviews.router)
 app.include_router(reprints.router)
 app.include_router(freshdesk.router)
 app.include_router(date_check_router)
+app.include_router(jobs_router)
 
 @app.get("/")
 async def root():

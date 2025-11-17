@@ -14,19 +14,20 @@ import schedule
 import time
 from jobs.daily_refresh import run_daily_refresh
 import logging
+from datetime import timezone, datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def setup_schedule():
     """Set up scheduled jobs."""
-    # Daily refresh at 2 AM
-    schedule.every().day.at("02:00").do(run_daily_refresh)
+    # Daily refresh at 9 AM GMT (for past 24 hours data)
+    schedule.every().day.at("09:00").do(run_daily_refresh)
     
-    # Weekly summary (Monday at 9 AM)
+    # Weekly summary (Monday at 9 AM GMT)
     schedule.every().monday.at("09:00").do(generate_weekly_report)
     
-    logger.info("Scheduler configured")
+    logger.info("Scheduler configured: Daily refresh at 9 AM GMT, Weekly report on Mondays at 9 AM GMT")
 
 def generate_weekly_report():
     """Generate weekly summary report with job locking."""
@@ -49,6 +50,7 @@ def run_scheduler():
     """Run the scheduler (blocking)."""
     setup_schedule()
     logger.info("Scheduler started. Press Ctrl+C to stop.")
+    logger.info(f"Current time: {datetime.now(timezone.utc)}")
     
     try:
         while True:
