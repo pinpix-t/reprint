@@ -6,20 +6,28 @@ from typing import List
 load_dotenv()
 
 # SECURITY: Never hardcode secrets - require environment variables
-# Note: Supabase is now optional - CSV is the primary data source
+# Fail fast if required secrets are missing
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 FRESHDESK_API_KEY = os.getenv("FRESHDESK_API_KEY")
 FRESHDESK_DOMAIN = os.getenv("FRESHDESK_DOMAIN", "")
 
-# Supabase is optional now (CSV is primary data source)
-# Only warn if Supabase is configured but incomplete
-if (SUPABASE_URL or SUPABASE_KEY) and not (SUPABASE_URL and SUPABASE_KEY):
-    print(
-        "WARNING: Supabase credentials are incomplete. "
-        "Using CSV file as data source.",
-        file=sys.stderr
+# Validate required secrets - fail immediately if missing
+missing_secrets = []
+
+if not SUPABASE_URL:
+    missing_secrets.append("SUPABASE_URL")
+if not SUPABASE_KEY:
+    missing_secrets.append("SUPABASE_KEY")
+
+if missing_secrets:
+    error_msg = (
+        f"CRITICAL: Required environment variables are missing: {', '.join(missing_secrets)}\n"
+        f"Please set these variables before starting the application.\n"
+        f"Example: export SUPABASE_URL='your-url' && export SUPABASE_KEY='your-key'"
     )
+    print(error_msg, file=sys.stderr)
+    sys.exit(1)
 
 # Optional: Warn if Freshdesk is configured but API key is missing
 if FRESHDESK_DOMAIN and not FRESHDESK_API_KEY:

@@ -9,47 +9,62 @@ logger = logging.getLogger(__name__)
 def parse_date(date_str: Optional[str], timezone_aware: bool = False) -> Optional[datetime]:
     """
     Parse date string to datetime object with proper timezone handling.
-    FIXED: Consistent date parsing with timezone awareness.
+    FIXED: Consistent date parsing with timezone awareness and DD/MM/YYYY support.
     """
     if not date_str:
         return None
     
     try:
-        # Handle DD/MM/YYYY format (common in CSV)
-        if '/' in date_str and not date_str.startswith('20'):  # Likely DD/MM/YYYY
+        # Handle DD/MM/YYYY format (common in CSV and Supabase text fields)
+        # Check if it looks like DD/MM/YYYY (has / and first part is 1-31)
+        if '/' in date_str:
             parts = date_str.split(' ')
             date_part = parts[0]
-            time_part = parts[1] if len(parts) > 1 else None
-            
-            try:
-                day, month, year = date_part.split('/')
-                year_int = int(year)
-                month_int = int(month)
-                day_int = int(day)
-                
-                # Handle 2-digit years
-                if year_int < 100:
-                    year_int += 2000 if year_int < 50 else 1900
-                
-                if time_part:
-                    time_parts = time_part.split(':')
-                    hour = int(time_parts[0])
-                    minute = int(time_parts[1]) if len(time_parts) > 1 else 0
-                    dt = datetime(year_int, month_int, day_int, hour, minute)
-                else:
-                    dt = datetime(year_int, month_int, day_int)
-                
-                # Make timezone-aware if requested (default to UTC)
-                if timezone_aware and dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                
-                return dt
-            except (ValueError, IndexError) as e:
-                logger.warning(f"Failed to parse date format DD/MM/YYYY: {date_str}, error: {e}")
-                # Fall through to parser.parse
+            date_components = date_part.split('/')
+            if len(date_components) == 3:
+                try:
+                    first_part = int(date_components[0])
+                    # If first part is 1-31, it's likely DD/MM/YYYY
+                    if 1 <= first_part <= 31:
+                        time_part = parts[1] if len(parts) > 1 else None
+                        
+                        try:
+                            day, month, year = date_part.split('/')
+                            year_int = int(year)
+                            month_int = int(month)
+                            day_int = int(day)
+                            
+                            # Handle 2-digit years
+                            if year_int < 100:
+                                year_int += 2000 if year_int < 50 else 1900
+                            
+                            if time_part:
+                                time_parts = time_part.split(':')
+                                hour = int(time_parts[0])
+                                minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                                dt = datetime(year_int, month_int, day_int, hour, minute)
+                            else:
+                                dt = datetime(year_int, month_int, day_int)
+                            
+                            # Make timezone-aware if requested (default to UTC)
+                            if timezone_aware and dt.tzinfo is None:
+                                dt = dt.replace(tzinfo=timezone.utc)
+                            
+                            return dt
+                        except (ValueError, IndexError) as e:
+                            logger.warning(f"Failed to parse date format DD/MM/YYYY: {date_str}, error: {e}")
+                            # Fall through to parser.parse
+                except ValueError:
+                    # Not a number, fall through to parser.parse
+                    pass
         
         # Use dateutil parser for ISO and other formats
-        dt = parser.parse(date_str)
+        # Note: dateutil might misinterpret DD/MM/YYYY as MM/DD/YYYY
+        # So we try to parse with dayfirst=True for ambiguous dates
+        try:
+            dt = parser.parse(date_str, dayfirst=True)
+        except:
+            dt = parser.parse(date_str)
         
         # Ensure timezone awareness
         if timezone_aware and dt.tzinfo is None:

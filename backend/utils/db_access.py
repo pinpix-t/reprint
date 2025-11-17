@@ -12,13 +12,8 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-# Supabase is optional - CSV is primary data source
-try:
-    from utils.supabase_client import supabase
-    SUPABASE_AVAILABLE = True
-except Exception:
-    SUPABASE_AVAILABLE = False
-    supabase = None
+from utils.supabase_client import supabase
+SUPABASE_AVAILABLE = True
 
 from utils.data_processor import process_reprint_data
 from config import MAX_PAGE_SIZE
@@ -58,8 +53,9 @@ def get_reprints(
     offset: int = 0
 ) -> pd.DataFrame:
     """
-    Fetch reprint data from CSV file with optional filters.
-    CSV is the primary data source.
+    Fetch reprint data from Supabase with optional filters.
+    Uses parameterized queries via Supabase client (safe from SQL injection).
+    Falls back to CSV if Supabase fails.
     """
     try:
         # Validate and sanitize inputs
@@ -70,7 +66,89 @@ def get_reprints(
             limit = MAX_PAGE_SIZE
             logger.warning(f"Limit exceeded MAX_PAGE_SIZE, capped at {MAX_PAGE_SIZE}")
         
-        # Load data from CSV (primary source)
+        # Try Supabase first
+        if SUPABASE_AVAILABLE and supabase:
+            try:
+                query = supabase.table(REPRINT_TABLE).select("*")
+                
+                # SECURITY: Supabase client uses parameterized queries
+                # Note: Dates in Supabase may be stored as text in DD/MM/YYYY format
+                # We'll fetch data and filter in Python to handle any date format
+                # This ensures compatibility regardless of how Supabase stores the dates
+                
+                # Apply non-date filters directly in query (more efficient)
+                if facility:
+                    query = query.eq(COLUMN_FACILITY_NAME, facility)
+                if product_type:
+                    query = query.eq(COLUMN_PRODUCT_TYPE, product_type)
+                
+                # Fetch data (we'll filter by date in Python if needed)
+                # Increase limit if date filtering is needed (we'll filter after)
+                fetch_limit = limit * 10 if (start_date or end_date) else limit
+                query = query.range(offset, offset + fetch_limit - 1)
+                
+                response = query.execute()
+                data = response.data if hasattr(response, 'data') else []
+                
+                logger.info(f"Fetched {len(data)} raw records from Supabase table {REPRINT_TABLE}")
+                
+                if data:
+                    # Process data to DataFrame
+                    df = process_reprint_data(data)
+                    logger.info(f"Processed {len(df)} records into DataFrame. Columns: {df.columns.tolist()}")
+                    
+                    # Apply date filters in Python (handles any date format)
+                    if start_date or end_date:
+                        if 'requested_date' in df.columns:
+                            initial_count = len(df)
+                            # Debug: Show sample dates before filtering
+                            if initial_count > 0:
+                                sample_dates = df['requested_date'].dropna().head(5).tolist()
+                                logger.info(f"Sample requested_date values before filtering: {sample_dates}")
+                                logger.info(f"Date range in data: min={df['requested_date'].min()}, max={df['requested_date'].max()}")
+                            
+                            if start_date:
+                                # Check how many dates are None/NaN
+                                null_dates = df['requested_date'].isna().sum()
+                                if null_dates > 0:
+                                    logger.warning(f"{null_dates} records have null requested_date")
+                                
+                                # Convert timezone-aware datetime to naive if needed (DataFrame dates are naive)
+                                if start_date.tzinfo is not None:
+                                    start_date = start_date.replace(tzinfo=None)
+                                
+                                df = df[df['requested_date'] >= start_date]
+                                logger.info(f"After start_date filter ({start_date}): {len(df)} records (from {initial_count})")
+                            if end_date:
+                                # Include full end date
+                                from datetime import timedelta
+                                end_date_inclusive = end_date + timedelta(days=1)
+                                
+                                # Convert timezone-aware datetime to naive if needed (DataFrame dates are naive)
+                                if end_date_inclusive.tzinfo is not None:
+                                    end_date_inclusive = end_date_inclusive.replace(tzinfo=None)
+                                
+                                before_end_filter = len(df)
+                                df = df[df['requested_date'] < end_date_inclusive]
+                                logger.info(f"After end_date filter (<{end_date_inclusive}): {len(df)} records (from {before_end_filter})")
+                        else:
+                            logger.warning(f"Column 'requested_date' not found in processed data. Available columns: {df.columns.tolist()}")
+                            logger.warning("Date filtering skipped - will return all data")
+                    
+                    # Apply limit after filtering
+                    if len(df) > limit:
+                        df = df.head(limit)
+                        logger.info(f"Limited results to {limit} records")
+                    
+                    logger.info(f"Returning {len(df)} records after filtering")
+                    return df
+                else:
+                    logger.warning(f"No data returned from Supabase table {REPRINT_TABLE}, falling back to CSV")
+            except Exception as e:
+                logger.error(f"Error fetching reprints from Supabase: {e}", exc_info=True)
+                logger.info("Falling back to CSV file")
+        
+        # Fallback to CSV
         df = _load_csv_fallback()
         
         if df.empty:
@@ -146,7 +224,7 @@ def get_reprints(
         logger.info(f"Returning {len(df)} records after filtering")
         return df
     except Exception as e:
-        logger.error(f"Error fetching reprints from CSV: {e}", exc_info=True)
+        logger.error(f"Error fetching reprints: {e}", exc_info=True)
         raise
 
 @lru_cache(maxsize=1)
@@ -219,16 +297,31 @@ def _load_csv_fallback() -> pd.DataFrame:
 
 def get_all_reprints(use_cache: bool = True) -> pd.DataFrame:
     """
-    Fetch all reprint data from CSV file.
-    CSV is the primary data source.
+    Fetch all reprint data from Supabase.
+    Falls back to CSV if Supabase fails.
     """
     try:
-        # Load data from CSV (primary source)
-        df = _load_csv_fallback() if use_cache else _load_csv_fallback()
-        logger.info(f"Loaded {len(df)} records from CSV file")
-        return df
+        # Try Supabase first
+        if SUPABASE_AVAILABLE and supabase:
+            try:
+                response = supabase.table(REPRINT_TABLE).select("*").execute()
+                data = response.data if hasattr(response, 'data') else []
+                
+                if data:
+                    logger.info(f"Fetched {len(data)} records from Supabase")
+                    return process_reprint_data(data)
+                else:
+                    logger.warning("No data from Supabase, falling back to CSV")
+            except Exception as e:
+                logger.error(f"Error fetching reprints from Supabase: {e}", exc_info=True)
+                logger.info("Falling back to CSV file")
+        
+        # Fallback: try to read from CSV if Supabase fails
+        if use_cache:
+            return _load_csv_fallback()
+        return pd.DataFrame()
     except Exception as e:
-        logger.error(f"Error fetching reprints from CSV: {e}", exc_info=True)
+        logger.error(f"Error fetching reprints: {e}", exc_info=True)
         return pd.DataFrame()
 
 def get_reviews(
