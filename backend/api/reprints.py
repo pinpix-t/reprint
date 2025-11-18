@@ -212,8 +212,11 @@ async def get_overview(
     # This allows us to calculate "last N days" relative to the most recent data
     all_data = get_all_reprints(use_cache=False)
     
-    # Debug: Log what we're getting
-    print(f"DEBUG: all_data.empty={all_data.empty}, has requested_date={'requested_date' in all_data.columns if not all_data.empty else False}")
+    # Debug: Log what we're getting - use logger instead of print
+    logger.info(f"DEBUG: all_data.empty={all_data.empty}, has requested_date={'requested_date' in all_data.columns if not all_data.empty else False}")
+    if not all_data.empty:
+        logger.info(f"DEBUG: all_data columns: {all_data.columns.tolist()}")
+        logger.info(f"DEBUG: all_data shape: {all_data.shape}")
     
     if not all_data.empty and 'requested_date' in all_data.columns:
         # Get the most recent date in the data
@@ -221,17 +224,14 @@ async def get_overview(
         valid_dates = all_data['requested_date'].dropna()
         if len(valid_dates) > 0:
             max_date = valid_dates.max()
-            print(f"DEBUG: Max date from data: {max_date} (type: {type(max_date)})")
-            logger.info(f"Max date from data: {max_date} (type: {type(max_date)})")
+            logger.info(f"DEBUG: Max date from data: {max_date} (type: {type(max_date)})")
         else:
             max_date = None
-            print("DEBUG: No valid dates found in data")
-            logger.warning("No valid dates found in data")
+            logger.warning("DEBUG: No valid dates found in data")
         
         if max_date is None or pd.isna(max_date):
             # If no valid dates, fall back to today
-            print("DEBUG: Max date is None or NaN, falling back to datetime.now()")
-            logger.warning("Max date is None or NaN, falling back to datetime.now()")
+            logger.warning("DEBUG: Max date is None or NaN, falling back to datetime.now()")
             end_date = datetime.now(timezone.utc)
         else:
             # Use the most recent data date as the end date
@@ -243,8 +243,7 @@ async def get_overview(
                     # Set to end of day to include all records from that date
                     max_date_dt = max_date_dt.replace(hour=23, minute=59, second=59, microsecond=0)
                     end_date = max_date_dt.replace(tzinfo=timezone.utc)
-                    print(f"DEBUG: Converted pandas Timestamp to end_date: {end_date}")
-                    logger.info(f"Converted pandas Timestamp to end_date: {end_date}")
+                    logger.info(f"DEBUG: Converted pandas Timestamp to end_date: {end_date}")
                 elif isinstance(max_date, datetime):
                     if max_date.tzinfo is None:
                         max_date_dt = max_date.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -263,8 +262,7 @@ async def get_overview(
                 end_date = datetime.now(timezone.utc)
     else:
         # Fallback to current date if we can't determine data range
-        print(f"DEBUG: Data is empty or missing requested_date column, falling back to datetime.now()")
-        logger.warning("Data is empty or missing requested_date column, falling back to datetime.now()")
+        logger.warning("DEBUG: Data is empty or missing requested_date column, falling back to datetime.now()")
         end_date = datetime.now(timezone.utc)
     
     # Calculate start date based on requested days, relative to most recent data
@@ -278,8 +276,7 @@ async def get_overview(
     else:
         start_date = (end_date - timedelta(days=days-1)) if days > 0 else end_date
     
-    print(f"DEBUG: Calculated date range for days={days}: start_date={start_date}, end_date={end_date}")
-    logger.info(f"Calculated date range for days={days}: start_date={start_date}, end_date={end_date}")
+    logger.info(f"DEBUG: Calculated date range for days={days}: start_date={start_date}, end_date={end_date}")
     
     # Note: get_reprints() will add 1 day internally to make end_date inclusive
     # So we pass end_date directly (not end_date + 1 day)
