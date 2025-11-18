@@ -2,7 +2,10 @@ from fastapi import APIRouter, Query, Request
 from typing import Optional, List
 from datetime import datetime, timedelta
 import pandas as pd
+import logging
 from utils.rate_limiter import limiter, DEFAULT_RATE_LIMIT
+
+logger = logging.getLogger(__name__)
 from services.reprint_analyzer import (
     calculate_reprint_metrics,
     get_product_metrics,
@@ -215,26 +218,45 @@ async def get_overview(
         valid_dates = all_data['requested_date'].dropna()
         if len(valid_dates) > 0:
             max_date = valid_dates.max()
+            logger.info(f"Max date from data: {max_date} (type: {type(max_date)})")
         else:
             max_date = None
+            logger.warning("No valid dates found in data")
+        
         if max_date is None or pd.isna(max_date):
             # If no valid dates, fall back to today
+            logger.warning("Max date is None or NaN, falling back to datetime.now()")
             end_date = datetime.now(timezone.utc)
         else:
             # Use the most recent data date as the end date
             # Convert pandas Timestamp to datetime and make timezone-aware
-            if isinstance(max_date, pd.Timestamp):
-                # Convert to Python datetime, keeping only date part (set time to end of day)
-                max_date_dt = max_date.to_pydatetime()
-                # Set to end of day to include all records from that date
-                max_date_dt = max_date_dt.replace(hour=23, minute=59, second=59)
-                end_date = max_date_dt.replace(tzinfo=timezone.utc)
-            elif max_date.tzinfo is None:
-                end_date = max_date.replace(tzinfo=timezone.utc)
-            else:
-                end_date = max_date
+            try:
+                if isinstance(max_date, pd.Timestamp):
+                    # Convert to Python datetime
+                    max_date_dt = max_date.to_pydatetime()
+                    # Set to end of day to include all records from that date
+                    max_date_dt = max_date_dt.replace(hour=23, minute=59, second=59, microsecond=0)
+                    end_date = max_date_dt.replace(tzinfo=timezone.utc)
+                    logger.info(f"Converted pandas Timestamp to end_date: {end_date}")
+                elif isinstance(max_date, datetime):
+                    if max_date.tzinfo is None:
+                        max_date_dt = max_date.replace(hour=23, minute=59, second=59, microsecond=0)
+                        end_date = max_date_dt.replace(tzinfo=timezone.utc)
+                    else:
+                        end_date = max_date.replace(hour=23, minute=59, second=59, microsecond=0)
+                    logger.info(f"Converted datetime to end_date: {end_date}")
+                else:
+                    # Try to convert to datetime
+                    max_date_dt = pd.to_datetime(max_date).to_pydatetime()
+                    max_date_dt = max_date_dt.replace(hour=23, minute=59, second=59, microsecond=0)
+                    end_date = max_date_dt.replace(tzinfo=timezone.utc)
+                    logger.info(f"Converted unknown type to end_date: {end_date}")
+            except Exception as e:
+                logger.error(f"Error converting max_date to end_date: {e}, falling back to datetime.now()")
+                end_date = datetime.now(timezone.utc)
     else:
         # Fallback to current date if we can't determine data range
+        logger.warning("Data is empty or missing requested_date column, falling back to datetime.now()")
         end_date = datetime.now(timezone.utc)
     
     # Calculate start date based on requested days, relative to most recent data
@@ -247,6 +269,9 @@ async def get_overview(
         start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
     else:
         start_date = (end_date - timedelta(days=days-1)) if days > 0 else end_date
+    
+    logger.info(f"Calculated date range for days={days}: start_date={start_date}, end_date={end_date}")
+    
     # Note: get_reprints() will add 1 day internally to make end_date inclusive
     # So we pass end_date directly (not end_date + 1 day)
     
