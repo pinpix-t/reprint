@@ -5,7 +5,8 @@ import pandas as pd
 from utils.db_access import get_reprints, get_all_reprints
 from models.reprint_metrics import (
     ReprintMetrics, ProductMetrics, FacilityMetrics, 
-    ReasonMetrics, TrendDataPoint, ComparisonMetrics, FacilityProductMatrix
+    ReasonMetrics, TrendDataPoint, ComparisonMetrics, FacilityProductMatrix,
+    ShippingCountryMetrics, ShippingServiceMetrics, ReasonCategoryMetrics
 )
 
 def calculate_reprint_metrics(
@@ -176,13 +177,18 @@ def get_reason_metrics(
 def get_trend_data(
     start_date: datetime,
     end_date: datetime,
-    group_by: str = "day"  # "day", "week", "month"
+    group_by: str = "day",  # "day", "week", "month"
+    reason_category: Optional[str] = None  # Filter by reason category
 ) -> List[TrendDataPoint]:
     """Get time-series trend data."""
     df = get_reprints(start_date=start_date, end_date=end_date)
     
     if df.empty or 'requested_date' not in df.columns:
         return []
+    
+    # Filter by category if specified
+    if reason_category and 'reason_category' in df.columns:
+        df = df[df['reason_category'] == reason_category]
     
     # Remove rows without dates
     df = df[df['requested_date'].notna()].copy()
@@ -360,4 +366,178 @@ def get_product_drilldown(product: str, days: int = 30) -> Dict:
         "reasons": {k: int(v) for k, v in reasons.items()},
         "trend": [{"date": t.date.isoformat(), "count": t.count} for t in trend]
     }
+
+def get_quality_metrics(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    facility: Optional[str] = None,
+    product_type: Optional[str] = None
+) -> Dict:
+    """Calculate quality/damage-related reprints count and percentage."""
+    df = get_reprints(
+        start_date=start_date,
+        end_date=end_date,
+        facility=facility,
+        product_type=product_type
+    )
+    
+    if df.empty:
+        return {
+            "quality_reprints": 0,
+            "quality_percentage": 0.0,
+            "total_reprints": 0
+        }
+    
+    total = len(df)
+    
+    # Filter for quality/damage reasons
+    if 'reason_category' in df.columns:
+        quality_df = df[df['reason_category'] == "Damage/Print Quality"]
+        quality_count = len(quality_df)
+    else:
+        # Fallback: check reason text for quality keywords
+        if 'reprint_reason' in df.columns:
+            quality_keywords = ['fingerprint', 'scuff', 'colour quality', 'color quality', 'poor quality',
+                              'ink', 'oil marks', 'pages not bound', 'pages missing', 'mixed up',
+                              'incorrectly cut', 'incorrectly cropped', 'wiro-binding']
+            quality_df = df[df['reprint_reason'].str.lower().str.contains('|'.join(quality_keywords), na=False)]
+            quality_count = len(quality_df)
+        else:
+            quality_count = 0
+    
+    quality_percentage = (quality_count / total * 100) if total > 0 else 0.0
+    
+    return {
+        "quality_reprints": quality_count,
+        "quality_percentage": quality_percentage,
+        "total_reprints": total
+    }
+
+def get_shipping_country_metrics(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    top_n: int = 10
+) -> List[ShippingCountryMetrics]:
+    """Get metrics by shipping country."""
+    df = get_reprints(start_date=start_date, end_date=end_date)
+    
+    if df.empty or 'shipping_country' not in df.columns:
+        return []
+    
+    country_counts = df['shipping_country'].value_counts()
+    total = len(df)
+    
+    metrics = []
+    for country, count in country_counts.head(top_n).items():
+        metrics.append(ShippingCountryMetrics(
+            country=str(country),
+            count=int(count),
+            percentage=(count / total * 100) if total > 0 else 0
+        ))
+    
+    return metrics
+
+def get_shipping_service_metrics(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    top_n: int = 10
+) -> List[ShippingServiceMetrics]:
+    """Get metrics by shipping service."""
+    df = get_reprints(start_date=start_date, end_date=end_date)
+    
+    if df.empty or 'shipping_service' not in df.columns:
+        return []
+    
+    service_counts = df['shipping_service'].value_counts()
+    total = len(df)
+    
+    metrics = []
+    for service, count in service_counts.head(top_n).items():
+        metrics.append(ShippingServiceMetrics(
+            service=str(service),
+            count=int(count),
+            percentage=(count / total * 100) if total > 0 else 0
+        ))
+    
+    return metrics
+
+def get_reason_category_metrics(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None
+) -> List[ReasonCategoryMetrics]:
+    """Get metrics grouped by reason category."""
+    df = get_reprints(start_date=start_date, end_date=end_date)
+    
+    if df.empty or 'reason_category' not in df.columns:
+        return []
+    
+    category_counts = df['reason_category'].value_counts()
+    total = len(df)
+    
+    metrics = []
+    for category, count in category_counts.items():
+        metrics.append(ReasonCategoryMetrics(
+            category=str(category),
+            count=int(count),
+            percentage=(count / total * 100) if total > 0 else 0
+        ))
+    
+    return sorted(metrics, key=lambda x: x.count, reverse=True)
+
+def get_trend_by_category(
+    start_date: datetime,
+    end_date: datetime,
+    category: Optional[str] = None,
+    group_by: str = "day"
+) -> List[TrendDataPoint]:
+    """Get trend data filtered by reason category."""
+    df = get_reprints(start_date=start_date, end_date=end_date)
+    
+    if df.empty or 'requested_date' not in df.columns:
+        return []
+    
+    # Filter by category if specified
+    if category and 'reason_category' in df.columns:
+        df = df[df['reason_category'] == category]
+    
+    # Remove rows without dates
+    df = df[df['requested_date'].notna()].copy()
+    
+    if df.empty:
+        return []
+    
+    # Group by time period
+    if group_by == "day":
+        df['period'] = df['requested_date'].dt.date
+    elif group_by == "week":
+        df['period'] = df['requested_date'].dt.to_period('W').dt.start_time
+    elif group_by == "month":
+        df['period'] = df['requested_date'].dt.to_period('M').dt.start_time
+    else:
+        df['period'] = df['requested_date'].dt.date
+    
+    trend_points = []
+    for period, group_df in df.groupby('period'):
+        by_product = {}
+        by_facility = {}
+        by_reason = {}
+        
+        if 'product_type' in group_df.columns:
+            by_product = group_df['product_type'].value_counts().to_dict()
+        
+        if 'facility' in group_df.columns:
+            by_facility = group_df['facility'].value_counts().to_dict()
+        
+        if 'reprint_reason' in group_df.columns:
+            by_reason = group_df['reprint_reason'].value_counts().to_dict()
+        
+        trend_points.append(TrendDataPoint(
+            date=period if isinstance(period, datetime) else datetime.combine(period, datetime.min.time()),
+            count=len(group_df),
+            by_product=by_product,
+            by_facility=by_facility,
+            by_reason=by_reason
+        ))
+    
+    return sorted(trend_points, key=lambda x: x.date)
 

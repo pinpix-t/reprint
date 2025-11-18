@@ -12,7 +12,12 @@ from services.reprint_analyzer import (
     get_comparison_metrics,
     get_facility_product_matrix,
     get_facility_drilldown,
-    get_product_drilldown
+    get_product_drilldown,
+    get_quality_metrics,
+    get_shipping_country_metrics,
+    get_shipping_service_metrics,
+    get_reason_category_metrics,
+    get_trend_by_category
 )
 
 router = APIRouter(prefix="/api/reprints", tags=["reprints"])
@@ -238,16 +243,58 @@ async def get_overview(
     reasons = get_reason_metrics(start_date=start_date, end_date=end_date, top_n=5)
     trend = get_trend_data(start_date=start_date, end_date=end_date, group_by="day")
     
+    # Get quality metrics
+    quality_metrics = get_quality_metrics(start_date=start_date, end_date=end_date)
+    
+    # Get shipping metrics
+    shipping_countries = get_shipping_country_metrics(start_date=start_date, end_date=end_date, top_n=1)
+    shipping_services = get_shipping_service_metrics(start_date=start_date, end_date=end_date, top_n=1)
+    
+    # Get reason categories
+    reason_categories = get_reason_category_metrics(start_date=start_date, end_date=end_date)
+    
+    # Get trend by category
+    trend_by_category = {}
+    for category in ["Damage/Print Quality", "Packaging/Transit Damage", "Address/Undelivered", "Customer Error"]:
+        category_trend = get_trend_by_category(start_date=start_date, end_date=end_date, category=category, group_by="day")
+        trend_by_category[category] = [
+            {
+                "date": t.date.isoformat(),
+                "count": t.count
+            }
+            for t in category_trend
+        ]
+    
     # Previous period comparison (same duration, shifted back)
     # Previous period ends exactly where current period starts (no gap, no overlap)
     prev_start = start_date - timedelta(days=days)
     prev_end = start_date  # Previous period ends at start_date (not start_date + 1)
     prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=prev_end)
+    prev_quality_metrics = get_quality_metrics(start_date=prev_start, end_date=prev_end)
     
     return {
         "total_reprints": metrics.total_reprints,
         "previous_period_total": prev_metrics.total_reprints,
         "change_percentage": metrics.change_percentage or 0,
+        "quality_reprints": quality_metrics["quality_reprints"],
+        "quality_percentage": quality_metrics["quality_percentage"],
+        "top_shipping_country": {
+            "country": shipping_countries[0].country if shipping_countries else None,
+            "count": shipping_countries[0].count if shipping_countries else 0
+        },
+        "top_shipping_service": {
+            "service": shipping_services[0].service if shipping_services else None,
+            "count": shipping_services[0].count if shipping_services else 0
+        },
+        "reason_categories": [
+            {
+                "category": c.category,
+                "count": c.count,
+                "percentage": c.percentage
+            }
+            for c in reason_categories
+        ],
+        "trend_by_category": trend_by_category,
         "top_products": [
             {
                 "product_type": p.product_type,
@@ -279,5 +326,126 @@ async def get_overview(
             }
             for t in trend
         ]
+    }
+
+@router.get("/shipping/countries")
+async def get_shipping_countries(
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    top_n: int = Query(10, description="Number of top countries to return")
+):
+    """Get reprints by shipping country."""
+    start = datetime.fromisoformat(start_date) if start_date else None
+    end = datetime.fromisoformat(end_date) if end_date else None
+    
+    metrics = get_shipping_country_metrics(start_date=start, end_date=end, top_n=top_n)
+    
+    return [
+        {
+            "country": m.country,
+            "count": m.count,
+            "percentage": m.percentage
+        }
+        for m in metrics
+    ]
+
+@router.get("/shipping/services")
+async def get_shipping_services(
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    top_n: int = Query(10, description="Number of top services to return")
+):
+    """Get reprints by shipping service."""
+    start = datetime.fromisoformat(start_date) if start_date else None
+    end = datetime.fromisoformat(end_date) if end_date else None
+    
+    metrics = get_shipping_service_metrics(start_date=start, end_date=end, top_n=top_n)
+    
+    return [
+        {
+            "service": m.service,
+            "count": m.count,
+            "percentage": m.percentage
+        }
+        for m in metrics
+    ]
+
+@router.get("/categories")
+async def get_categories(
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)")
+):
+    """Get reprints grouped by reason category."""
+    start = datetime.fromisoformat(start_date) if start_date else None
+    end = datetime.fromisoformat(end_date) if end_date else None
+    
+    metrics = get_reason_category_metrics(start_date=start, end_date=end)
+    
+    return [
+        {
+            "category": m.category,
+            "count": m.count,
+            "percentage": m.percentage
+        }
+        for m in metrics
+    ]
+
+@router.get("/records")
+async def get_records(
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    facility: Optional[str] = Query(None),
+    product_type: Optional[str] = Query(None),
+    reason_category: Optional[str] = Query(None),
+    shipping_country: Optional[str] = Query(None),
+    shipping_service: Optional[str] = Query(None),
+    limit: int = Query(1000, description="Maximum number of records to return"),
+    offset: int = Query(0, description="Offset for pagination")
+):
+    """Get detailed reprint records with filters."""
+    from utils.db_access import get_reprints
+    
+    start = datetime.fromisoformat(start_date) if start_date else None
+    end = datetime.fromisoformat(end_date) if end_date else None
+    
+    df = get_reprints(
+        start_date=start,
+        end_date=end,
+        facility=facility,
+        product_type=product_type,
+        limit=limit,
+        offset=offset
+    )
+    
+    # Apply additional filters
+    if reason_category and 'reason_category' in df.columns:
+        df = df[df['reason_category'] == reason_category]
+    if shipping_country and 'shipping_country' in df.columns:
+        df = df[df['shipping_country'] == shipping_country]
+    if shipping_service and 'shipping_service' in df.columns:
+        df = df[df['shipping_service'] == shipping_service]
+    
+    # Convert to records
+    records = []
+    for _, row in df.iterrows():
+        records.append({
+            "requested_date": row['requested_date'].isoformat() if pd.notna(row.get('requested_date')) else None,
+            "order_number": str(row.get('Order Number', '')) if pd.notna(row.get('Order Number')) else None,
+            "product_type": str(row.get('product_type', '')) if pd.notna(row.get('product_type')) else None,
+            "sub_type": str(row.get('sub_type', '')) if pd.notna(row.get('sub_type')) else None,
+            "facility": str(row.get('facility', '')) if pd.notna(row.get('facility')) else None,
+            "reprint_reason": str(row.get('reprint_reason', '')) if pd.notna(row.get('reprint_reason')) else None,
+            "shipping_country": str(row.get('shipping_country', '')) if pd.notna(row.get('shipping_country')) else None,
+            "shipping_service": str(row.get('shipping_service', '')) if pd.notna(row.get('shipping_service')) else None,
+            "monumber": str(row.get('MONumber', '')) if pd.notna(row.get('MONumber')) else None,
+            "conumber": str(row.get('CONumber', '')) if pd.notna(row.get('CONumber')) else None,
+            "order_value": float(row.get('order_value', 0)) if pd.notna(row.get('order_value')) else None
+        })
+    
+    return {
+        "records": records,
+        "total": len(records),
+        "limit": limit,
+        "offset": offset
     }
 

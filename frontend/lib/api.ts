@@ -52,6 +52,12 @@ export interface OverviewData {
   total_reprints: number;
   previous_period_total: number;
   change_percentage: number;
+  quality_reprints: number;
+  quality_percentage: number;
+  top_shipping_country: { country: string | null; count: number };
+  top_shipping_service: { service: string | null; count: number };
+  reason_categories: Array<{ category: string; count: number; percentage: number }>;
+  trend_by_category: Record<string, Array<{ date: string; count: number }>>;
   top_products: Array<{ product_type: string; count: number; percentage: number }>;
   top_facilities: Array<{ facility: string; count: number; percentage: number }>;
   top_reasons: Array<{ reason: string; count: number; percentage: number }>;
@@ -166,6 +172,69 @@ export const apiClient = {
   // Freshdesk
   getFreshdeskStats: async (days: number = 30) => {
     const response = await api.get(`/api/freshdesk/stats?days=${days}`);
+    return response.data;
+  },
+
+  // Shipping
+  getShippingCountryMetrics: async (startDate?: string, endDate?: string, topN: number = 10) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    params.append('top_n', topN.toString());
+    const response = await api.get(`/api/reprints/shipping/countries?${params.toString()}`);
+    return response.data;
+  },
+
+  getShippingServiceMetrics: async (startDate?: string, endDate?: string, topN: number = 10) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    params.append('top_n', topN.toString());
+    const response = await api.get(`/api/reprints/shipping/services?${params.toString()}`);
+    return response.data;
+  },
+
+  // Categories
+  getReasonCategoryMetrics: async (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const response = await api.get(`/api/reprints/categories?${params.toString()}`);
+    return response.data;
+  },
+
+  // Records
+  getReprintRecords: async (
+    startDate?: string,
+    endDate?: string,
+    facility?: string,
+    productType?: string,
+    reasonCategory?: string,
+    shippingCountry?: string,
+    shippingService?: string,
+    limit: number = 1000,
+    offset: number = 0
+  ) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (facility) params.append('facility', facility);
+    if (productType) params.append('product_type', productType);
+    if (reasonCategory) params.append('reason_category', reasonCategory);
+    if (shippingCountry) params.append('shipping_country', shippingCountry);
+    if (shippingService) params.append('shipping_service', shippingService);
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+    const response = await api.get(`/api/reprints/records?${params.toString()}`);
+    return response.data;
+  },
+
+  // Matrix
+  getMatrix: async (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const response = await api.get(`/api/reprints/matrix?${params.toString()}`);
     return response.data;
   },
 };

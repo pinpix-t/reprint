@@ -48,3 +48,31 @@ class FacilityProductMatrix(BaseModel):
     count: int
     reasons: Dict[str, int]
 
+class ShippingCountryMetrics(BaseModel):
+    country: str
+    count: int
+    percentage: float
+
+class ShippingServiceMetrics(BaseModel):
+    service: str
+    count: int
+    percentage: float
+
+class ReasonCategoryMetrics(BaseModel):
+    category: str
+    count: int
+    percentage: float
+
+class ReprintRecord(BaseModel):
+    requested_date: Optional[str]
+    order_number: Optional[str]
+    product_type: Optional[str]
+    sub_type: Optional[str]
+    facility: Optional[str]
+    reprint_reason: Optional[str]
+    shipping_country: Optional[str]
+    shipping_service: Optional[str]
+    monumber: Optional[str]
+    conumber: Optional[str]
+    order_value: Optional[float]
+

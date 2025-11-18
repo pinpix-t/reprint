@@ -128,6 +128,56 @@ def normalize_reprint_reason(reason: Optional[str]) -> str:
         return "Unknown"
     return reason.strip()
 
+def categorize_reason(reason: Optional[str]) -> str:
+    """
+    Categorize reprint reason into high-level buckets.
+    
+    Categories:
+    - Damage/Print Quality: Print quality issues, damage during production
+    - Packaging/Transit Damage: Damage during shipping/transit
+    - Address/Undelivered: Delivery issues, address problems
+    - Customer Error: Customer mistakes, wrong orders
+    """
+    if not reason:
+        return "Unknown"
+    
+    reason_lower = reason.lower().strip()
+    
+    # Damage/Print Quality
+    quality_keywords = [
+        'fingerprint', 'scuff', 'colour quality', 'color quality', 'poor quality',
+        'ink', 'oil marks', 'pages not bound', 'pages missing', 'mixed up',
+        'incorrectly cut', 'incorrectly cropped', 'wiro-binding', 'poor quality'
+    ]
+    if any(keyword in reason_lower for keyword in quality_keywords):
+        return "Damage/Print Quality"
+    
+    # Packaging/Transit Damage
+    transit_keywords = [
+        'damaged in transit', 'wrapping issue'
+    ]
+    if any(keyword in reason_lower for keyword in transit_keywords):
+        return "Packaging/Transit Damage"
+    
+    # Address/Undelivered
+    address_keywords = [
+        'lost in transit', 'undelivered', 'insufficient address',
+        'customer moved', 'address'
+    ]
+    if any(keyword in reason_lower for keyword in address_keywords):
+        return "Address/Undelivered"
+    
+    # Customer Error
+    customer_keywords = [
+        'not my photo', 'not my order', 'incorrect material', 'incorrect size',
+        'order partially missing'
+    ]
+    if any(keyword in reason_lower for keyword in customer_keywords):
+        return "Customer Error"
+    
+    # Default to Unknown if no match
+    return "Unknown"
+
 def process_reprint_data(data: List[Dict]) -> pd.DataFrame:
     """Process raw reprint data into normalized DataFrame."""
     df = pd.DataFrame(data)
@@ -136,9 +186,9 @@ def process_reprint_data(data: List[Dict]) -> pd.DataFrame:
     # 'Requested date' is DD/MM/YYYY format
     if 'Requested date' in df.columns:
         df['requested_date'] = df['Requested date'].apply(lambda x: parse_date(x, date_format="DD/MM/YYYY"))
-    # 'Order Date' is MM/DD/YYYY format
+    # 'Order Date' is DD/MM/YYYY format
     if 'Order Date' in df.columns:
-        df['order_date'] = df['Order Date'].apply(lambda x: parse_date(x, date_format="MM/DD/YYYY"))
+        df['order_date'] = df['Order Date'].apply(lambda x: parse_date(x, date_format="DD/MM/YYYY"))
     # Other dates - try to auto-detect format
     if 'Authorized Date' in df.columns:
         df['authorized_date'] = df['Authorized Date'].apply(parse_date)
@@ -154,12 +204,15 @@ def process_reprint_data(data: List[Dict]) -> pd.DataFrame:
         df['sub_type'] = df['Sub Type'].apply(lambda x: x.strip() if x else "Unknown")
     if 'Reprint Reason' in df.columns:
         df['reprint_reason'] = df['Reprint Reason'].apply(normalize_reprint_reason)
+        df['reason_category'] = df['reprint_reason'].apply(categorize_reason)
     if 'ActualFacilityName' in df.columns:
         df['facility'] = df['ActualFacilityName'].apply(normalize_facility_name)
     elif 'Reprinted Facility Name' in df.columns:
         df['facility'] = df['Reprinted Facility Name'].apply(normalize_facility_name)
     if 'Shipping Country' in df.columns:
         df['shipping_country'] = df['Shipping Country'].apply(lambda x: x.strip() if x else "Unknown")
+    if 'Shipping Service' in df.columns:
+        df['shipping_service'] = df['Shipping Service'].apply(lambda x: x.strip() if x else "Unknown")
     if 'Order Value' in df.columns:
         df['order_value'] = pd.to_numeric(df['Order Value'], errors='coerce').fillna(0)
     
