@@ -227,9 +227,9 @@ def get_all_reprints(use_cache: bool = True) -> pd.DataFrame:
         # Use CSV as primary source - it has all the data
         # Supabase might be missing records or have outdated data
         logger.info("Using CSV as primary data source (has all 11,659 records)")
-        if use_cache:
-            return _load_csv_fallback()
-        return pd.DataFrame()
+        # Always load from CSV - use_cache parameter doesn't make sense for CSV
+        # (CSV is already the fastest source, no caching needed)
+        return _load_csv_fallback()
     except Exception as e:
         logger.error(f"Error fetching reprints from CSV: {e}", exc_info=True)
         return pd.DataFrame()
