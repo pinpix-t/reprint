@@ -49,5 +49,5 @@ EXPOSE 8000
 # Start command using venv
 # Use $PORT environment variable (Railway provides this)
 # Use absolute paths to avoid cd issues
-CMD ["/bin/bash", "-c", "/app/backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --chdir /app/backend"]
+CMD ["/bin/bash", "-c", "cd /app/backend && /app/backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
