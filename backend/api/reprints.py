@@ -222,8 +222,14 @@ async def get_overview(
             end_date = datetime.now(timezone.utc)
         else:
             # Use the most recent data date as the end date
-            # Convert to timezone-aware if needed
-            if max_date.tzinfo is None:
+            # Convert pandas Timestamp to datetime and make timezone-aware
+            if isinstance(max_date, pd.Timestamp):
+                # Convert to Python datetime, keeping only date part (set time to end of day)
+                max_date_dt = max_date.to_pydatetime()
+                # Set to end of day to include all records from that date
+                max_date_dt = max_date_dt.replace(hour=23, minute=59, second=59)
+                end_date = max_date_dt.replace(tzinfo=timezone.utc)
+            elif max_date.tzinfo is None:
                 end_date = max_date.replace(tzinfo=timezone.utc)
             else:
                 end_date = max_date
@@ -235,7 +241,12 @@ async def get_overview(
     # For days=1 (past 24 hours), we want the last day of data available
     # So if latest data is 2025-11-14 and days=1, we get 2025-11-14 only
     # If days=7, we get 2025-11-08 to 2025-11-14
-    start_date = (end_date - timedelta(days=days-1)) if days > 0 else end_date
+    if days == 1:
+        # For single day, start_date should be the start of the latest day
+        # end_date is already set to end of latest day (23:59:59), so we need start of same day
+        start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start_date = (end_date - timedelta(days=days-1)) if days > 0 else end_date
     # Note: get_reprints() will add 1 day internally to make end_date inclusive
     # So we pass end_date directly (not end_date + 1 day)
     
