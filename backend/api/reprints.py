@@ -232,7 +232,10 @@ async def get_overview(
         end_date = datetime.now(timezone.utc)
     
     # Calculate start date based on requested days, relative to most recent data
-    start_date = (end_date - timedelta(days=days))
+    # For days=1 (past 24 hours), we want the last day of data available
+    # So if latest data is 2025-11-14 and days=1, we get 2025-11-14 only
+    # If days=7, we get 2025-11-08 to 2025-11-14
+    start_date = (end_date - timedelta(days=days-1)) if days > 0 else end_date
     # Note: get_reprints() will add 1 day internally to make end_date inclusive
     # So we pass end_date directly (not end_date + 1 day)
     
@@ -266,9 +269,16 @@ async def get_overview(
         ]
     
     # Previous period comparison (same duration, shifted back)
-    # Previous period ends exactly where current period starts (no gap, no overlap)
-    prev_start = start_date - timedelta(days=days)
-    prev_end = start_date  # Previous period ends at start_date (not start_date + 1)
+    # For days=1, previous period is the day before the latest day
+    # For days=7, previous period is the 7 days before the current period
+    if days == 1:
+        # For single day, previous period is the day before
+        prev_end = start_date - timedelta(days=1)
+        prev_start = prev_end
+    else:
+        # For multiple days, previous period is the same duration before current period
+        prev_start = start_date - timedelta(days=days)
+        prev_end = start_date
     prev_metrics = calculate_reprint_metrics(start_date=prev_start, end_date=prev_end)
     prev_quality_metrics = get_quality_metrics(start_date=prev_start, end_date=prev_end)
     
