@@ -299,6 +299,7 @@ export default function ReviewInsightsTab() {
           </div>
         </div>
       </div>
+      </div>
     </div>
   );
 }
