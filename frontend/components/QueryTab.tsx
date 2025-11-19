@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../lib/api';
 import { useFilters } from '../contexts/FilterContext';
 import GlobalFilters from './GlobalFilters';
@@ -22,106 +22,7 @@ export default function QueryTab() {
   const recordsPerPage = 50;
   
   const isMountedRef = useRef(true);
-
-  const loadData = useCallback(async () => {
-    try {
-      if (!isMountedRef.current) return;
-      
-      setLoading(true);
-      setError(null);
-
-      const startDate = filters.startDate || undefined;
-      const endDate = filters.endDate || undefined;
-      const facility = filters.facility || undefined;
-      const productType = filters.productType || undefined;
-
-      // Load matrix for heatmap
-      let matrixDataFull = await apiClient.getMatrix(startDate, endDate);
-      
-      // Filter matrix by facility/productType if filters are set
-      if (facility || productType) {
-        matrixDataFull = matrixDataFull.filter((m: any) => {
-          if (facility && m.facility !== facility) return false;
-          if (productType && m.product !== productType) return false;
-          return true;
-        });
-      }
-
-      // Load trend if filtered
-      let trendData: any[] = [];
-      if (facility || productType) {
-        const trendStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const trendEnd = endDate || new Date().toISOString().split('T')[0];
-        trendData = await apiClient.getTrend(trendStart, trendEnd);
-        
-        // Filter trend data by facility/productType
-        if (facility) {
-          trendData = trendData.map((t: any) => ({
-            ...t,
-            count: t.by_facility?.[facility] || 0
-          })).filter((t: any) => t.count > 0);
-        } else if (productType) {
-          trendData = trendData.map((t: any) => ({
-            ...t,
-            count: t.by_product?.[productType] || 0
-          })).filter((t: any) => t.count > 0);
-        }
-      }
-
-      // Load reasons breakdown
-      let reasonsData: any[] = [];
-      if (facility || productType) {
-        const drilldownType = facility ? 'facility' : 'product';
-        const drilldownValue = facility || productType || '';
-        const days = startDate && endDate 
-          ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
-          : 30;
-        
-        const drilldown = drilldownType === 'facility'
-          ? await apiClient.getFacilityDetails(drilldownValue, days)
-          : await apiClient.getProductDetails(drilldownValue, days);
-        
-        reasonsData = Object.entries(drilldown.reasons || {}).map(([reason, count]) => ({
-          reason,
-          count: count as number,
-        }));
-      } else {
-        reasonsData = await apiClient.getReasonMetrics(startDate, endDate, 10);
-      }
-
-      // Load records
-      const recordsData = await apiClient.getReprintRecords(
-        startDate,
-        endDate,
-        facility,
-        productType,
-        filters.reasonCategory || undefined,
-        filters.reprintReason || undefined,
-        filters.shippingCountry || undefined,
-        filters.region || undefined,
-        filters.shippingService || undefined,
-        recordsPerPage,
-        recordsPage * recordsPerPage
-      );
-
-      if (isMountedRef.current) {
-        setMatrix(matrixDataFull);
-        setTrend(trendData);
-        setReasons(reasonsData);
-        setRecords(recordsData.records || []);
-        setRecordsTotal(recordsData.total || 0);
-      }
-    } catch (err: any) {
-      if (isMountedRef.current) {
-        setError('Failed to load data');
-        console.error(err);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [filters, recordsPage, recordsPerPage]);
+  const prevFiltersRef = useRef<string>('');
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -131,15 +32,160 @@ export default function QueryTab() {
     };
   }, []);
 
-  // Reset page and reload when filters change
-  useEffect(() => {
-    setRecordsPage(0);
-  }, [filters.facility, filters.productType, filters.startDate, filters.endDate, filters.reasonCategory, filters.reprintReason, filters.region, filters.shippingCountry, filters.shippingService]);
-
   // Load data when filters or pagination changes
   useEffect(() => {
+    // Create a string representation of filters to detect changes
+    const filtersKey = JSON.stringify({
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      facility: filters.facility,
+      productType: filters.productType,
+      reasonCategory: filters.reasonCategory,
+      reprintReason: filters.reprintReason,
+      region: filters.region,
+      shippingCountry: filters.shippingCountry,
+      shippingService: filters.shippingService,
+      recordsPage
+    });
+
+    // Reset page when filters change (but not when just pagination changes)
+    if (prevFiltersRef.current && prevFiltersRef.current !== filtersKey) {
+      const prevFilters = JSON.parse(prevFiltersRef.current);
+      const currentFilters = JSON.parse(filtersKey);
+      
+      // Check if any filter (not recordsPage) changed
+      const filterChanged = 
+        prevFilters.startDate !== currentFilters.startDate ||
+        prevFilters.endDate !== currentFilters.endDate ||
+        prevFilters.facility !== currentFilters.facility ||
+        prevFilters.productType !== currentFilters.productType ||
+        prevFilters.reasonCategory !== currentFilters.reasonCategory ||
+        prevFilters.reprintReason !== currentFilters.reprintReason ||
+        prevFilters.region !== currentFilters.region ||
+        prevFilters.shippingCountry !== currentFilters.shippingCountry ||
+        prevFilters.shippingService !== currentFilters.shippingService;
+      
+      if (filterChanged && currentFilters.recordsPage !== 0) {
+        setRecordsPage(0);
+        return; // Will trigger this effect again with recordsPage=0
+      }
+    }
+
+    prevFiltersRef.current = filtersKey;
+
+    const loadData = async () => {
+      try {
+        if (!isMountedRef.current) return;
+        
+        setLoading(true);
+        setError(null);
+
+        const startDate = filters.startDate || undefined;
+        const endDate = filters.endDate || undefined;
+        const facility = filters.facility || undefined;
+        const productType = filters.productType || undefined;
+
+        // Load matrix for heatmap
+        let matrixDataFull = await apiClient.getMatrix(startDate, endDate);
+        
+        // Filter matrix by facility/productType if filters are set
+        if (facility || productType) {
+          matrixDataFull = matrixDataFull.filter((m: any) => {
+            if (facility && m.facility !== facility) return false;
+            if (productType && m.product !== productType) return false;
+            return true;
+          });
+        }
+
+        // Load trend if filtered
+        let trendData: any[] = [];
+        if (facility || productType) {
+          const trendStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const trendEnd = endDate || new Date().toISOString().split('T')[0];
+          trendData = await apiClient.getTrend(trendStart, trendEnd);
+          
+          // Filter trend data by facility/productType
+          if (facility) {
+            trendData = trendData.map((t: any) => ({
+              ...t,
+              count: t.by_facility?.[facility] || 0
+            })).filter((t: any) => t.count > 0);
+          } else if (productType) {
+            trendData = trendData.map((t: any) => ({
+              ...t,
+              count: t.by_product?.[productType] || 0
+            })).filter((t: any) => t.count > 0);
+          }
+        }
+
+        // Load reasons breakdown
+        let reasonsData: any[] = [];
+        if (facility || productType) {
+          const drilldownType = facility ? 'facility' : 'product';
+          const drilldownValue = facility || productType || '';
+          const days = startDate && endDate 
+            ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
+            : 30;
+          
+          const drilldown = drilldownType === 'facility'
+            ? await apiClient.getFacilityDetails(drilldownValue, days)
+            : await apiClient.getProductDetails(drilldownValue, days);
+          
+          reasonsData = Object.entries(drilldown.reasons || {}).map(([reason, count]) => ({
+            reason,
+            count: count as number,
+          }));
+        } else {
+          reasonsData = await apiClient.getReasonMetrics(startDate, endDate, 10);
+        }
+
+        // Load records
+        const recordsData = await apiClient.getReprintRecords(
+          startDate,
+          endDate,
+          facility,
+          productType,
+          filters.reasonCategory || undefined,
+          filters.reprintReason || undefined,
+          filters.shippingCountry || undefined,
+          filters.region || undefined,
+          filters.shippingService || undefined,
+          recordsPerPage,
+          recordsPage * recordsPerPage
+        );
+
+        if (isMountedRef.current) {
+          setMatrix(matrixDataFull);
+          setTrend(trendData);
+          setReasons(reasonsData);
+          setRecords(recordsData.records || []);
+          setRecordsTotal(recordsData.total || 0);
+        }
+      } catch (err: any) {
+        if (isMountedRef.current) {
+          setError('Failed to load data');
+          console.error(err);
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
     loadData();
-  }, [loadData]);
+  }, [
+    filters.startDate,
+    filters.endDate,
+    filters.facility,
+    filters.productType,
+    filters.reasonCategory,
+    filters.reprintReason,
+    filters.region,
+    filters.shippingCountry,
+    filters.shippingService,
+    recordsPage
+  ]);
 
   const handleHeatmapClick = (facility: string, product: string) => {
     setFilters({ facility, productType: product, reprintReason: null });
