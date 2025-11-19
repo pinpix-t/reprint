@@ -234,10 +234,11 @@ export const apiClient = {
   },
 
   // Matrix
-  getMatrix: async (startDate?: string, endDate?: string) => {
+  getMatrix: async (startDate?: string, endDate?: string, region?: string) => {
     const params = new URLSearchParams();
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
+    if (region) params.append('region', region);
     const response = await api.get(`/api/reprints/matrix?${params.toString()}`);
     return response.data;
   },

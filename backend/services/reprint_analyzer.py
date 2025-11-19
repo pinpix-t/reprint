@@ -269,12 +269,20 @@ def get_comparison_metrics(
 
 def get_facility_product_matrix(
     start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None,
+    region: Optional[str] = None
 ) -> List[FacilityProductMatrix]:
     """Get facility × product issue matrix."""
     df = get_reprints(start_date=start_date, end_date=end_date)
     
     if df.empty or 'facility' not in df.columns or 'product_type' not in df.columns:
+        return []
+    
+    # Filter by region if provided
+    if region and 'shipping_country' in df.columns:
+        df = df[df['shipping_country'] == region]
+    
+    if df.empty:
         return []
     
     matrix = []

@@ -164,13 +164,14 @@ async def get_comparison(
 @router.get("/matrix")
 async def get_matrix(
     start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None)
+    end_date: Optional[str] = Query(None),
+    region: Optional[str] = Query(None)
 ):
     """Get facility × product issue matrix."""
     start = datetime.fromisoformat(start_date) if start_date else None
     end = datetime.fromisoformat(end_date) if end_date else None
     
-    matrix = get_facility_product_matrix(start_date=start, end_date=end)
+    matrix = get_facility_product_matrix(start_date=start, end_date=end, region=region)
     
     return [
         {

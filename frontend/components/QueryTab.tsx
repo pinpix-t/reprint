@@ -76,9 +76,10 @@ export default function QueryTab() {
         const endDate = filters.endDate || undefined;
         const facility = filters.facility || undefined;
         const productType = filters.productType || undefined;
+        const region = filters.region || filters.shippingCountry || undefined;
 
-        // Load matrix for heatmap
-        let matrixDataFull = await apiClient.getMatrix(startDate, endDate);
+        // Load matrix for heatmap (with region filter if set)
+        let matrixDataFull = await apiClient.getMatrix(startDate, endDate, region);
         
         // Filter matrix by facility/productType if filters are set
         if (facility || productType) {
