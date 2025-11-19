@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiClient } from '../lib/api';
 import { useFilters } from '../contexts/FilterContext';
 import GlobalFilters from './GlobalFilters';
@@ -23,16 +23,7 @@ export default function QueryTab() {
   
   const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    loadData();
-    
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [filters, recordsPage]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       if (!isMountedRef.current) return;
       
@@ -43,7 +34,16 @@ export default function QueryTab() {
       const endDate = filters.endDate || undefined;
 
       // Load matrix for heatmap
-      const matrixDataFull = await apiClient.getMatrix(startDate, endDate);
+      let matrixDataFull = await apiClient.getMatrix(startDate, endDate);
+      
+      // Filter matrix by facility/productType if filters are set
+      if (filters.facility || filters.productType) {
+        matrixDataFull = matrixDataFull.filter((m: any) => {
+          if (filters.facility && m.facility !== filters.facility) return false;
+          if (filters.productType && m.product !== filters.productType) return false;
+          return true;
+        });
+      }
 
       // Load trend if filtered
       let trendData: any[] = [];
@@ -107,7 +107,22 @@ export default function QueryTab() {
         setLoading(false);
       }
     }
-  };
+  }, [filters, recordsPage, recordsPerPage]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    // Reset to first page when filters change
+    setRecordsPage(0);
+    
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [filters]);
+
+  // Load data when filters or pagination changes
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleHeatmapClick = (facility: string, product: string) => {
     setFilters({ facility, productType: product, reprintReason: null });

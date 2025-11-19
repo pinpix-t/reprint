@@ -121,7 +121,7 @@ export default function ReviewInsightsTab() {
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
           >
             <option value={1}>Yesterday / Past 24hrs</option>
             <option value={7}>Last 7 days</option>

@@ -64,7 +64,7 @@ export default function GlobalFilters() {
               type="date"
               value={filters.startDate || ''}
               onChange={(e) => handleDateChange('startDate', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
             />
           </div>
           <div>
@@ -73,7 +73,7 @@ export default function GlobalFilters() {
               type="date"
               value={filters.endDate || ''}
               onChange={(e) => handleDateChange('endDate', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
             />
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function GlobalFilters() {
           <select
             value={filters.productType || ''}
             onChange={(e) => handleSelectChange('productType', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
           >
             <option value="">All Products</option>
             {products.map((product) => (
@@ -101,7 +101,7 @@ export default function GlobalFilters() {
           <select
             value={filters.facility || ''}
             onChange={(e) => handleSelectChange('facility', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
           >
             <option value="">All Facilities</option>
             {facilities.map((facility) => (
@@ -118,7 +118,7 @@ export default function GlobalFilters() {
           <select
             value={filters.reasonCategory || ''}
             onChange={(e) => handleSelectChange('reasonCategory', e.target.value === 'All' ? null : e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
           >
             {reasonCategories.map((category) => (
               <option key={category} value={category === 'All' ? '' : category}>
@@ -143,7 +143,7 @@ export default function GlobalFilters() {
                 handleSelectChange('shippingCountry', '');
               }
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
           >
             <option value="">All Regions</option>
             {shippingCountries.map((country) => (
@@ -160,7 +160,7 @@ export default function GlobalFilters() {
           <select
             value={filters.shippingService || ''}
             onChange={(e) => handleSelectChange('shippingService', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
           >
             <option value="">All Services</option>
             {shippingServices.map((service) => (
