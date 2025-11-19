@@ -40,7 +40,7 @@ export default function GlobalFilters() {
     setFilters({ [field]: value || null });
   };
 
-  const handleSelectChange = (field: keyof typeof filters, value: string) => {
+  const handleSelectChange = (field: keyof typeof filters, value: string | null) => {
     setFilters({ [field]: value || null });
   };
 
