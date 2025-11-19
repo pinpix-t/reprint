@@ -68,7 +68,9 @@ export default function ReviewInsightsTab() {
           filters.facility || undefined,
           filters.productType || undefined,
           filters.reasonCategory || undefined,
+          undefined, // reprintReason
           filters.shippingCountry || undefined,
+          undefined, // region
           filters.shippingService || undefined,
           100
         ),
