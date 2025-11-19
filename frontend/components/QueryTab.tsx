@@ -32,9 +32,8 @@ export default function QueryTab() {
     };
   }, []);
 
-  // Load data when filters or pagination changes
+  // Reset page when filters change (but not when just pagination changes)
   useEffect(() => {
-    // Create a string representation of filters to detect changes
     const filtersKey = JSON.stringify({
       startDate: filters.startDate,
       endDate: filters.endDate,
@@ -45,34 +44,27 @@ export default function QueryTab() {
       region: filters.region,
       shippingCountry: filters.shippingCountry,
       shippingService: filters.shippingService,
-      recordsPage
     });
 
-    // Reset page when filters change (but not when just pagination changes)
     if (prevFiltersRef.current && prevFiltersRef.current !== filtersKey) {
-      const prevFilters = JSON.parse(prevFiltersRef.current);
-      const currentFilters = JSON.parse(filtersKey);
-      
-      // Check if any filter (not recordsPage) changed
-      const filterChanged = 
-        prevFilters.startDate !== currentFilters.startDate ||
-        prevFilters.endDate !== currentFilters.endDate ||
-        prevFilters.facility !== currentFilters.facility ||
-        prevFilters.productType !== currentFilters.productType ||
-        prevFilters.reasonCategory !== currentFilters.reasonCategory ||
-        prevFilters.reprintReason !== currentFilters.reprintReason ||
-        prevFilters.region !== currentFilters.region ||
-        prevFilters.shippingCountry !== currentFilters.shippingCountry ||
-        prevFilters.shippingService !== currentFilters.shippingService;
-      
-      if (filterChanged && currentFilters.recordsPage !== 0) {
-        setRecordsPage(0);
-        return; // Will trigger this effect again with recordsPage=0
-      }
+      setRecordsPage(0);
     }
 
     prevFiltersRef.current = filtersKey;
+  }, [
+    filters.startDate,
+    filters.endDate,
+    filters.facility,
+    filters.productType,
+    filters.reasonCategory,
+    filters.reprintReason,
+    filters.region,
+    filters.shippingCountry,
+    filters.shippingService,
+  ]);
 
+  // Load data when filters or pagination changes
+  useEffect(() => {
     const loadData = async () => {
       try {
         if (!isMountedRef.current) return;
