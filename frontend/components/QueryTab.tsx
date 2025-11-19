@@ -82,7 +82,9 @@ export default function QueryTab() {
         filters.facility || undefined,
         filters.productType || undefined,
         filters.reasonCategory || undefined,
+        filters.reprintReason || undefined,
         filters.shippingCountry || undefined,
+        filters.region || undefined,
         filters.shippingService || undefined,
         recordsPerPage,
         recordsPage * recordsPerPage
@@ -108,11 +110,52 @@ export default function QueryTab() {
   };
 
   const handleHeatmapClick = (facility: string, product: string) => {
-    setFilters({ facility, productType: product });
+    setFilters({ facility, productType: product, reprintReason: null });
+  };
+
+  const handleReasonClick = (item: { name: string; value: number }) => {
+    setFilters({ reprintReason: item.name });
+  };
+
+  const handleBreadcrumbClick = (level: 'all' | 'product-facility' | 'reason' | 'orders') => {
+    if (level === 'all') {
+      setFilters({ facility: null, productType: null, reprintReason: null });
+    } else if (level === 'product-facility') {
+      setFilters({ reprintReason: null });
+    } else if (level === 'reason') {
+      // Go back to reason view (clear reprintReason but keep facility/productType)
+      setFilters({ reprintReason: null });
+    }
+    // 'orders' level is disabled - no action needed
   };
 
   const handleExport = () => {
     exportToCSV(records, 'reprints.csv');
+  };
+
+  // Build breadcrumb path
+  const getBreadcrumbs = () => {
+    const crumbs: Array<{ label: string; level: 'all' | 'product-facility' | 'reason' | 'orders'; active: boolean }> = [];
+    
+    if (!filters.facility && !filters.productType && !filters.reprintReason) {
+      crumbs.push({ label: 'All', level: 'all', active: true });
+    } else {
+      crumbs.push({ label: 'All', level: 'all', active: false });
+      
+      if (filters.facility || filters.productType) {
+        const label = filters.facility && filters.productType 
+          ? `${filters.productType} × ${filters.facility}`
+          : filters.facility || filters.productType || '';
+        crumbs.push({ label, level: 'product-facility', active: !filters.reprintReason });
+        
+        if (filters.reprintReason) {
+          crumbs.push({ label: filters.reprintReason, level: 'reason', active: true });
+          crumbs.push({ label: 'Orders', level: 'orders', active: true });
+        }
+      }
+    }
+    
+    return crumbs;
   };
 
   if (loading && matrix.length === 0) {
@@ -135,6 +178,30 @@ export default function QueryTab() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
+          </div>
+        )}
+
+        {/* Breadcrumb Navigation */}
+        {(filters.facility || filters.productType || filters.reprintReason) && (
+          <div className="bg-white p-4 rounded-lg shadow">
+            <nav className="flex items-center space-x-2 text-sm">
+              {getBreadcrumbs().map((crumb, index) => (
+                <div key={index} className="flex items-center">
+                  {index > 0 && <span className="mx-2 text-gray-400">/</span>}
+                  <button
+                    onClick={() => handleBreadcrumbClick(crumb.level)}
+                    className={`${
+                      crumb.active
+                        ? 'text-blue-600 font-semibold'
+                        : 'text-gray-600 hover:text-blue-600'
+                    } transition-colors`}
+                    disabled={crumb.level === 'orders'}
+                  >
+                    {crumb.label}
+                  </button>
+                </div>
+              ))}
+            </nav>
           </div>
         )}
 
@@ -167,21 +234,24 @@ export default function QueryTab() {
         )}
 
         {/* Reason breakdown for selected product/facility */}
-        {(filters.facility || filters.productType) && reasons.length > 0 && (
+        {(filters.facility || filters.productType) && !filters.reprintReason && reasons.length > 0 && (
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">Reason Breakdown</h3>
+            <p className="text-sm text-gray-500 mb-4">Click on a reason to see the orders</p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <BarChart
                 data={reasons.map((r) => ({
                   name: r.reason,
                   value: r.count,
                 }))}
+                onItemClick={handleReasonClick}
               />
               <PieChart
                 data={reasons.map((r) => ({
                   name: r.reason,
                   value: r.count,
                 }))}
+                onItemClick={handleReasonClick}
               />
             </div>
           </div>
@@ -190,7 +260,13 @@ export default function QueryTab() {
         {/* Detailed Records Table */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Detailed Records</h3>
+            <h3 className="text-lg font-semibold">
+              {filters.reprintReason 
+                ? `Orders for: ${filters.reprintReason}`
+                : filters.facility || filters.productType
+                ? `Orders for: ${filters.facility || filters.productType}`
+                : 'Detailed Records'}
+            </h3>
             <button
               onClick={handleExport}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"

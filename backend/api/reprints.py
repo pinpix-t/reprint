@@ -449,7 +449,9 @@ async def get_records(
     facility: Optional[str] = Query(None),
     product_type: Optional[str] = Query(None),
     reason_category: Optional[str] = Query(None),
+    reprint_reason: Optional[str] = Query(None),
     shipping_country: Optional[str] = Query(None),
+    region: Optional[str] = Query(None),
     shipping_service: Optional[str] = Query(None),
     limit: int = Query(1000, description="Maximum number of records to return"),
     offset: int = Query(0, description="Offset for pagination")
@@ -472,8 +474,12 @@ async def get_records(
     # Apply additional filters
     if reason_category and 'reason_category' in df.columns:
         df = df[df['reason_category'] == reason_category]
-    if shipping_country and 'shipping_country' in df.columns:
-        df = df[df['shipping_country'] == shipping_country]
+    if reprint_reason and 'reprint_reason' in df.columns:
+        df = df[df['reprint_reason'] == reprint_reason]
+    # Region maps to shipping_country - use region if provided, otherwise use shipping_country
+    region_filter = region or shipping_country
+    if region_filter and 'shipping_country' in df.columns:
+        df = df[df['shipping_country'] == region_filter]
     if shipping_service and 'shipping_service' in df.columns:
         df = df[df['shipping_service'] == shipping_service]
     

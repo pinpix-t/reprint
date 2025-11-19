@@ -128,15 +128,24 @@ export default function GlobalFilters() {
           </select>
         </div>
 
-        {/* Shipping Country */}
+        {/* Region (Shipping Country) */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Country</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
           <select
-            value={filters.shippingCountry || ''}
-            onChange={(e) => handleSelectChange('shippingCountry', e.target.value)}
+            value={filters.region || filters.shippingCountry || ''}
+            onChange={(e) => {
+              const value = e.target.value || null;
+              handleSelectChange('region', value || '');
+              // Also update shippingCountry for backward compatibility
+              if (value) {
+                handleSelectChange('shippingCountry', value);
+              } else {
+                handleSelectChange('shippingCountry', '');
+              }
+            }}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
           >
-            <option value="">All Countries</option>
+            <option value="">All Regions</option>
             {shippingCountries.map((country) => (
               <option key={country} value={country}>
                 {country}
@@ -171,7 +180,9 @@ export default function GlobalFilters() {
             subType: null,
             facility: null,
             reasonCategory: null,
+            reprintReason: null,
             shippingCountry: null,
+            region: null,
             shippingService: null,
           })}
           className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm font-medium"

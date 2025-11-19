@@ -210,7 +210,9 @@ export const apiClient = {
     facility?: string,
     productType?: string,
     reasonCategory?: string,
+    reprintReason?: string,
     shippingCountry?: string,
+    region?: string,
     shippingService?: string,
     limit: number = 1000,
     offset: number = 0
@@ -221,7 +223,9 @@ export const apiClient = {
     if (facility) params.append('facility', facility);
     if (productType) params.append('product_type', productType);
     if (reasonCategory) params.append('reason_category', reasonCategory);
+    if (reprintReason) params.append('reprint_reason', reprintReason);
     if (shippingCountry) params.append('shipping_country', shippingCountry);
+    if (region) params.append('region', region);
     if (shippingService) params.append('shipping_service', shippingService);
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());

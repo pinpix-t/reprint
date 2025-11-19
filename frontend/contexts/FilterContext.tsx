@@ -7,7 +7,9 @@ export interface FilterState {
   subType: string | null;
   facility: string | null;
   reasonCategory: string | null;
+  reprintReason: string | null;
   shippingCountry: string | null;
+  region: string | null;
   shippingService: string | null;
 }
 
@@ -24,7 +26,9 @@ const defaultFilters: FilterState = {
   subType: null,
   facility: null,
   reasonCategory: null,
+  reprintReason: null,
   shippingCountry: null,
+  region: null,
   shippingService: null,
 };
 
