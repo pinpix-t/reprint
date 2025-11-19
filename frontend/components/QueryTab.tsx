@@ -32,33 +32,47 @@ export default function QueryTab() {
 
       const startDate = filters.startDate || undefined;
       const endDate = filters.endDate || undefined;
+      const facility = filters.facility || undefined;
+      const productType = filters.productType || undefined;
 
       // Load matrix for heatmap
       let matrixDataFull = await apiClient.getMatrix(startDate, endDate);
       
       // Filter matrix by facility/productType if filters are set
-      if (filters.facility || filters.productType) {
+      if (facility || productType) {
         matrixDataFull = matrixDataFull.filter((m: any) => {
-          if (filters.facility && m.facility !== filters.facility) return false;
-          if (filters.productType && m.product !== filters.productType) return false;
+          if (facility && m.facility !== facility) return false;
+          if (productType && m.product !== productType) return false;
           return true;
         });
       }
 
       // Load trend if filtered
       let trendData: any[] = [];
-      if (filters.facility || filters.productType) {
-        trendData = await apiClient.getTrend(
-          startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          endDate || new Date().toISOString().split('T')[0]
-        );
+      if (facility || productType) {
+        const trendStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const trendEnd = endDate || new Date().toISOString().split('T')[0];
+        trendData = await apiClient.getTrend(trendStart, trendEnd);
+        
+        // Filter trend data by facility/productType
+        if (facility) {
+          trendData = trendData.map((t: any) => ({
+            ...t,
+            count: t.by_facility?.[facility] || 0
+          })).filter((t: any) => t.count > 0);
+        } else if (productType) {
+          trendData = trendData.map((t: any) => ({
+            ...t,
+            count: t.by_product?.[productType] || 0
+          })).filter((t: any) => t.count > 0);
+        }
       }
 
       // Load reasons breakdown
       let reasonsData: any[] = [];
-      if (filters.facility || filters.productType) {
-        const drilldownType = filters.facility ? 'facility' : 'product';
-        const drilldownValue = filters.facility || filters.productType || '';
+      if (facility || productType) {
+        const drilldownType = facility ? 'facility' : 'product';
+        const drilldownValue = facility || productType || '';
         const days = startDate && endDate 
           ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
           : 30;
@@ -79,8 +93,8 @@ export default function QueryTab() {
       const recordsData = await apiClient.getReprintRecords(
         startDate,
         endDate,
-        filters.facility || undefined,
-        filters.productType || undefined,
+        facility,
+        productType,
         filters.reasonCategory || undefined,
         filters.reprintReason || undefined,
         filters.shippingCountry || undefined,
@@ -111,13 +125,16 @@ export default function QueryTab() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    // Reset to first page when filters change
-    setRecordsPage(0);
     
     return () => {
       isMountedRef.current = false;
     };
-  }, [filters]);
+  }, []);
+
+  // Reset page and reload when filters change
+  useEffect(() => {
+    setRecordsPage(0);
+  }, [filters.facility, filters.productType, filters.startDate, filters.endDate, filters.reasonCategory, filters.reprintReason, filters.region, filters.shippingCountry, filters.shippingService]);
 
   // Load data when filters or pagination changes
   useEffect(() => {
