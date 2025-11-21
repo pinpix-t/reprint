@@ -66,7 +66,7 @@ def get_reprints(
             limit = MAX_PAGE_SIZE
             logger.warning(f"Limit exceeded MAX_PAGE_SIZE, capped at {MAX_PAGE_SIZE}")
         
-        # Use CSV as primary source - it has all 11,659 records with latest dates
+        # Use CSV as primary source - it has all 11,917 records with latest dates
         # Supabase may not have all records or may be missing latest 2025 data
         logger.info("Using CSV as primary data source for get_reprints()")
         
@@ -165,12 +165,12 @@ def _load_csv_fallback() -> pd.DataFrame:
             import csv
             # Try multiple possible paths for CSV file
             possible_paths = [
-                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'BO_reprints_rows.csv'),  # Root directory
-                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'BO_reprints_rows.csv'),  # Backend directory
-                'BO_reprints_rows.csv',  # Current directory
-                os.path.join('..', 'BO_reprints_rows.csv'),  # Parent directory
-                '/app/BO_reprints_rows.csv',  # Docker container root
-                '/app/backend/BO_reprints_rows.csv',  # Docker backend directory
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'BO_reprints_rows_2.csv'),  # Root directory
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'BO_reprints_rows_2.csv'),  # Backend directory
+                'BO_reprints_rows_2.csv',  # Current directory
+                os.path.join('..', 'BO_reprints_rows_2.csv'),  # Parent directory
+                '/app/BO_reprints_rows_2.csv',  # Docker container root
+                '/app/backend/BO_reprints_rows_2.csv',  # Docker backend directory
             ]
             csv_path = None
             for path in possible_paths:
@@ -220,13 +220,13 @@ def _load_csv_fallback() -> pd.DataFrame:
 def get_all_reprints(use_cache: bool = True) -> pd.DataFrame:
     """
     Fetch all reprint data from CSV (primary source).
-    CSV has all 11,659 records with latest dates.
+    CSV has all 11,917 records with latest dates.
     Supabase may not have all records or may be missing latest data.
     """
     try:
         # Use CSV as primary source - it has all the data
         # Supabase might be missing records or have outdated data
-        logger.info("Using CSV as primary data source (has all 11,659 records)")
+        logger.info("Using CSV as primary data source (has all 11,917 records)")
         # Always load from CSV - use_cache parameter doesn't make sense for CSV
         # (CSV is already the fastest source, no caching needed)
         return _load_csv_fallback()
