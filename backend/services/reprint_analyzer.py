@@ -144,10 +144,15 @@ def get_facility_metrics(
 def get_reason_metrics(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    top_n: int = 10
+    top_n: int = 10,
+    region: Optional[str] = None
 ) -> List[ReasonMetrics]:
     """Get metrics by reprint reason."""
     df = get_reprints(start_date=start_date, end_date=end_date)
+    
+    # Filter by region if provided
+    if region and 'shipping_country' in df.columns:
+        df = df[df['shipping_country'] == region]
     
     if df.empty or 'reprint_reason' not in df.columns:
         return []
@@ -178,13 +183,18 @@ def get_trend_data(
     start_date: datetime,
     end_date: datetime,
     group_by: str = "day",  # "day", "week", "month"
-    reason_category: Optional[str] = None  # Filter by reason category
+    reason_category: Optional[str] = None,  # Filter by reason category
+    region: Optional[str] = None  # Filter by region (shipping_country)
 ) -> List[TrendDataPoint]:
     """Get time-series trend data."""
     df = get_reprints(start_date=start_date, end_date=end_date)
     
     if df.empty or 'requested_date' not in df.columns:
         return []
+    
+    # Filter by region if provided
+    if region and 'shipping_country' in df.columns:
+        df = df[df['shipping_country'] == region]
     
     # Filter by category if specified
     if reason_category and 'reason_category' in df.columns:
@@ -301,7 +311,7 @@ def get_facility_product_matrix(
     
     return sorted(matrix, key=lambda x: x.count, reverse=True)
 
-def get_facility_drilldown(facility: str, days: int = 30) -> Dict:
+def get_facility_drilldown(facility: str, days: int = 30, region: Optional[str] = None) -> Dict:
     """Get detailed analysis for a specific facility."""
     # Use timezone-aware datetime to match overview endpoint behavior
     from datetime import timezone
@@ -309,6 +319,10 @@ def get_facility_drilldown(facility: str, days: int = 30) -> Dict:
     start_date = end_date - timedelta(days=days)
     
     df = get_reprints(start_date=start_date, end_date=end_date, facility=facility)
+    
+    # Filter by region if provided
+    if region and 'shipping_country' in df.columns:
+        df = df[df['shipping_country'] == region]
     
     if df.empty:
         return {
@@ -328,7 +342,7 @@ def get_facility_drilldown(facility: str, days: int = 30) -> Dict:
         reasons = df['reprint_reason'].value_counts().to_dict()
     
     # Get trend - end_date will be made inclusive by get_trend_data -> get_reprints
-    trend = get_trend_data(start_date, end_date, group_by="day")
+    trend = get_trend_data(start_date, end_date, group_by="day", region=region)
     
     return {
         "facility": facility,
@@ -338,7 +352,7 @@ def get_facility_drilldown(facility: str, days: int = 30) -> Dict:
         "trend": [{"date": t.date.isoformat(), "count": t.count} for t in trend]
     }
 
-def get_product_drilldown(product: str, days: int = 30) -> Dict:
+def get_product_drilldown(product: str, days: int = 30, region: Optional[str] = None) -> Dict:
     """Get detailed analysis for a specific product."""
     # Use timezone-aware datetime to match overview endpoint behavior
     from datetime import timezone
@@ -346,6 +360,10 @@ def get_product_drilldown(product: str, days: int = 30) -> Dict:
     start_date = end_date - timedelta(days=days)
     
     df = get_reprints(start_date=start_date, end_date=end_date, product_type=product)
+    
+    # Filter by region if provided
+    if region and 'shipping_country' in df.columns:
+        df = df[df['shipping_country'] == region]
     
     if df.empty:
         return {
@@ -365,7 +383,7 @@ def get_product_drilldown(product: str, days: int = 30) -> Dict:
         reasons = df['reprint_reason'].value_counts().to_dict()
     
     # Get trend - end_date will be made inclusive by get_trend_data -> get_reprints
-    trend = get_trend_data(start_date, end_date, group_by="day")
+    trend = get_trend_data(start_date, end_date, group_by="day", region=region)
     
     return {
         "product": product,

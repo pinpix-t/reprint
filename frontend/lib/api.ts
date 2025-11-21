@@ -117,19 +117,23 @@ export const apiClient = {
     return response.data;
   },
 
-  getReasonMetrics: async (startDate?: string, endDate?: string, topN: number = 10) => {
+  getReasonMetrics: async (startDate?: string, endDate?: string, topN: number = 10, region?: string) => {
     const params = new URLSearchParams();
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
     params.append('top_n', topN.toString());
+    if (region) params.append('region', region);
     const response = await api.get(`/api/reprints/reasons?${params.toString()}`);
     return response.data;
   },
 
-  getTrend: async (startDate: string, endDate: string, groupBy: string = 'day'): Promise<TrendDataPoint[]> => {
-    const response = await api.get(
-      `/api/reprints/trend?start_date=${startDate}&end_date=${endDate}&group_by=${groupBy}`
-    );
+  getTrend: async (startDate: string, endDate: string, groupBy: string = 'day', region?: string): Promise<TrendDataPoint[]> => {
+    const params = new URLSearchParams();
+    params.append('start_date', startDate);
+    params.append('end_date', endDate);
+    params.append('group_by', groupBy);
+    if (region) params.append('region', region);
+    const response = await api.get(`/api/reprints/trend?${params.toString()}`);
     return response.data;
   },
 
@@ -140,13 +144,19 @@ export const apiClient = {
     return response.data;
   },
 
-  getFacilityDetails: async (facility: string, days: number = 30) => {
-    const response = await api.get(`/api/reprints/facility/${facility}?days=${days}`);
+  getFacilityDetails: async (facility: string, days: number = 30, region?: string) => {
+    const params = new URLSearchParams();
+    params.append('days', days.toString());
+    if (region) params.append('region', region);
+    const response = await api.get(`/api/reprints/facility/${facility}?${params.toString()}`);
     return response.data;
   },
 
-  getProductDetails: async (product: string, days: number = 30) => {
-    const response = await api.get(`/api/reprints/product/${product}?days=${days}`);
+  getProductDetails: async (product: string, days: number = 30, region?: string) => {
+    const params = new URLSearchParams();
+    params.append('days', days.toString());
+    if (region) params.append('region', region);
+    const response = await api.get(`/api/reprints/product/${product}?${params.toString()}`);
     return response.data;
   },
 

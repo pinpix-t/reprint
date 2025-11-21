@@ -95,7 +95,7 @@ export default function QueryTab() {
         if (facility || productType) {
           const trendStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           const trendEnd = endDate || new Date().toISOString().split('T')[0];
-          trendData = await apiClient.getTrend(trendStart, trendEnd);
+          trendData = await apiClient.getTrend(trendStart, trendEnd, 'day', region);
           
           // Filter trend data by facility/productType
           if (facility) {
@@ -121,15 +121,15 @@ export default function QueryTab() {
             : 30;
           
           const drilldown = drilldownType === 'facility'
-            ? await apiClient.getFacilityDetails(drilldownValue, days)
-            : await apiClient.getProductDetails(drilldownValue, days);
+            ? await apiClient.getFacilityDetails(drilldownValue, days, region)
+            : await apiClient.getProductDetails(drilldownValue, days, region);
           
           reasonsData = Object.entries(drilldown.reasons || {}).map(([reason, count]) => ({
             reason,
             count: count as number,
           }));
         } else {
-          reasonsData = await apiClient.getReasonMetrics(startDate, endDate, 10);
+          reasonsData = await apiClient.getReasonMetrics(startDate, endDate, 10, region);
         }
 
         // Load records

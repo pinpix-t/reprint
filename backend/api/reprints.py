@@ -100,13 +100,14 @@ async def get_facilities_metrics(
 async def get_reasons_metrics(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    top_n: int = Query(10)
+    top_n: int = Query(10),
+    region: Optional[str] = Query(None, description="Filter by region (shipping_country)")
 ):
     """Get metrics by reprint reason."""
     start = datetime.fromisoformat(start_date) if start_date else None
     end = datetime.fromisoformat(end_date) if end_date else None
     
-    metrics = get_reason_metrics(start_date=start, end_date=end, top_n=top_n)
+    metrics = get_reason_metrics(start_date=start, end_date=end, top_n=top_n, region=region)
     
     return [
         {
@@ -122,13 +123,14 @@ async def get_reasons_metrics(
 async def get_trend(
     start_date: str = Query(..., description="Start date (YYYY-MM-DD)"),
     end_date: str = Query(..., description="End date (YYYY-MM-DD)"),
-    group_by: str = Query("day", description="Group by: day, week, or month")
+    group_by: str = Query("day", description="Group by: day, week, or month"),
+    region: Optional[str] = Query(None, description="Filter by region (shipping_country)")
 ):
     """Get time-series trend data."""
     start = datetime.fromisoformat(start_date)
     end = datetime.fromisoformat(end_date)
     
-    trend = get_trend_data(start_date=start, end_date=end, group_by=group_by)
+    trend = get_trend_data(start_date=start, end_date=end, group_by=group_by, region=region)
     
     return [
         {
@@ -186,18 +188,20 @@ async def get_matrix(
 @router.get("/facility/{facility}")
 async def get_facility_details(
     facility: str,
-    days: int = Query(30, description="Number of days to analyze")
+    days: int = Query(30, description="Number of days to analyze"),
+    region: Optional[str] = Query(None, description="Filter by region (shipping_country)")
 ):
     """Get detailed analysis for a specific facility."""
-    return get_facility_drilldown(facility, days=days)
+    return get_facility_drilldown(facility, days=days, region=region)
 
 @router.get("/product/{product}")
 async def get_product_details(
     product: str,
-    days: int = Query(30, description="Number of days to analyze")
+    days: int = Query(30, description="Number of days to analyze"),
+    region: Optional[str] = Query(None, description="Filter by region (shipping_country)")
 ):
     """Get detailed analysis for a specific product."""
-    return get_product_drilldown(product, days=days)
+    return get_product_drilldown(product, days=days, region=region)
 
 @router.get("/overview")
 @limiter.limit(DEFAULT_RATE_LIMIT)
