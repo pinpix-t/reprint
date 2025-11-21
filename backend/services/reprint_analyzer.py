@@ -290,7 +290,11 @@ def get_facility_product_matrix(
     
     # Filter by region if provided
     if region and 'shipping_country' in df.columns:
+        before_region = len(df)
         df = df[df['shipping_country'] == region]
+        logger.info(f"After region filter ({region}): {len(df)} records (from {before_region})")
+    elif region:
+        logger.warning(f"Region filter provided ({region}) but 'shipping_country' column not found")
     
     if df.empty:
         return []

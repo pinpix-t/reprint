@@ -107,7 +107,9 @@ async def get_reasons_metrics(
     start = datetime.fromisoformat(start_date) if start_date else None
     end = datetime.fromisoformat(end_date) if end_date else None
     
+    logger.info(f"Reasons endpoint called with region={region}, start_date={start_date}, end_date={end_date}")
     metrics = get_reason_metrics(start_date=start, end_date=end, top_n=top_n, region=region)
+    logger.info(f"Reasons endpoint returning {len(metrics)} metrics")
     
     return [
         {
@@ -130,7 +132,9 @@ async def get_trend(
     start = datetime.fromisoformat(start_date)
     end = datetime.fromisoformat(end_date)
     
+    logger.info(f"Trend endpoint called with region={region}, start_date={start_date}, end_date={end_date}")
     trend = get_trend_data(start_date=start, end_date=end, group_by=group_by, region=region)
+    logger.info(f"Trend endpoint returning {len(trend)} data points")
     
     return [
         {
@@ -173,7 +177,9 @@ async def get_matrix(
     start = datetime.fromisoformat(start_date) if start_date else None
     end = datetime.fromisoformat(end_date) if end_date else None
     
+    logger.info(f"Matrix endpoint called with region={region}, start_date={start_date}, end_date={end_date}")
     matrix = get_facility_product_matrix(start_date=start, end_date=end, region=region)
+    logger.info(f"Matrix endpoint returning {len(matrix)} items")
     
     return [
         {
@@ -484,7 +490,11 @@ async def get_records(
     # Region maps to shipping_country - use region if provided, otherwise use shipping_country
     region_filter = region or shipping_country
     if region_filter and 'shipping_country' in df.columns:
+        before_region = len(df)
         df = df[df['shipping_country'] == region_filter]
+        logger.info(f"After region filter ({region_filter}): {len(df)} records (from {before_region})")
+    elif region_filter:
+        logger.warning(f"Region filter provided ({region_filter}) but 'shipping_country' column not found")
     if shipping_service and 'shipping_service' in df.columns:
         df = df[df['shipping_service'] == shipping_service]
     
