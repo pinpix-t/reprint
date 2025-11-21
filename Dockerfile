@@ -26,7 +26,7 @@ WORKDIR /app
 COPY backend/ /app/backend/
 
 # Copy CSV data file
-COPY BO_reprints_rows.csv /app/BO_reprints_rows.csv
+COPY BO_reprints_rows_2.csv /app/BO_reprints_rows_2.csv
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
