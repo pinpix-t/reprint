@@ -122,7 +122,10 @@ export const apiClient = {
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
     params.append('top_n', topN.toString());
-    if (region) params.append('region', region);
+    if (region !== undefined) {
+      params.append('region', region || '');
+      console.log('getReasonMetrics: Adding region param:', region);
+    }
     const response = await api.get(`/api/reprints/reasons?${params.toString()}`);
     return response.data;
   },
@@ -132,7 +135,10 @@ export const apiClient = {
     params.append('start_date', startDate);
     params.append('end_date', endDate);
     params.append('group_by', groupBy);
-    if (region) params.append('region', region);
+    if (region !== undefined) {
+      params.append('region', region || '');
+      console.log('getTrend: Adding region param:', region);
+    }
     const response = await api.get(`/api/reprints/trend?${params.toString()}`);
     return response.data;
   },
@@ -248,8 +254,16 @@ export const apiClient = {
     const params = new URLSearchParams();
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
-    if (region) params.append('region', region);
-    const response = await api.get(`/api/reprints/matrix?${params.toString()}`);
+    // Include region if it's not undefined (allow empty string to be sent)
+    if (region !== undefined) {
+      params.append('region', region || '');
+      console.log('getMatrix: Adding region param:', region);
+    } else {
+      console.log('getMatrix: region is undefined, not adding param');
+    }
+    const url = `/api/reprints/matrix?${params.toString()}`;
+    console.log('getMatrix: Full URL:', url);
+    const response = await api.get(url);
     return response.data;
   },
 };

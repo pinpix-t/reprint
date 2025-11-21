@@ -135,11 +135,13 @@ export default function GlobalFilters() {
             value={filters.region || filters.shippingCountry || ''}
             onChange={(e) => {
               const value = e.target.value || null;
+              console.log('Region dropdown changed - value:', value, 'e.target.value:', e.target.value);
               // Update both fields in a single setFilters call to ensure atomic update
               setFilters({ 
                 region: value, 
                 shippingCountry: value 
               });
+              console.log('setFilters called with:', { region: value, shippingCountry: value });
             }}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900"
           >

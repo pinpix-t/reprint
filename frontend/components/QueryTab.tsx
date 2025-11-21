@@ -76,10 +76,15 @@ export default function QueryTab() {
         const endDate = filters.endDate || undefined;
         const facility = filters.facility || undefined;
         const productType = filters.productType || undefined;
-        const region = filters.region || filters.shippingCountry || undefined;
+        // Get region - prefer region over shippingCountry, but allow empty string to be sent
+        const region = filters.region !== null ? filters.region : (filters.shippingCountry !== null ? filters.shippingCountry : undefined);
 
         // Debug logging
-        console.log('QueryTab loadData - region:', region, 'filters.region:', filters.region, 'filters.shippingCountry:', filters.shippingCountry);
+        console.log('QueryTab loadData called');
+        console.log('  filters.region:', filters.region, 'type:', typeof filters.region);
+        console.log('  filters.shippingCountry:', filters.shippingCountry, 'type:', typeof filters.shippingCountry);
+        console.log('  extracted region:', region, 'type:', typeof region);
+        console.log('  all filters:', JSON.stringify(filters, null, 2));
 
         // Load matrix for heatmap (with region filter if set)
         let matrixDataFull = await apiClient.getMatrix(startDate, endDate, region);
