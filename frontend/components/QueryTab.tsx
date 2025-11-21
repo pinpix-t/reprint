@@ -90,14 +90,14 @@ export default function QueryTab() {
           });
         }
 
-        // Load trend if filtered
+        // Load trend - load if we have any filters (facility, productType, region, or date range)
         let trendData: any[] = [];
-        if (facility || productType) {
+        if (facility || productType || region || startDate || endDate) {
           const trendStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           const trendEnd = endDate || new Date().toISOString().split('T')[0];
           trendData = await apiClient.getTrend(trendStart, trendEnd, 'day', region);
           
-          // Filter trend data by facility/productType
+          // Filter trend data by facility/productType if set
           if (facility) {
             trendData = trendData.map((t: any) => ({
               ...t,
